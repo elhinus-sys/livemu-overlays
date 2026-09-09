@@ -87,6 +87,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Socket.IO
 const io = new Server(server, {
+    maxHttpBufferSize: 5e7, // 50MB para soportar plantillas y datos grandes sin cerrar transporte
+    pingTimeout: 60000,
+    pingInterval: 25000,
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
