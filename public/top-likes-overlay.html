@@ -460,7 +460,6 @@
         }
 
         // --- CONEXIÓN SOCKET ---
-        const urlParams = new URLSearchParams(window.location.search);
         const streamToken = urlParams.get('token') || 'default';
         const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
         const socket = typeof io !== 'undefined' ? io(socketHost, {

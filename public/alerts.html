@@ -322,7 +322,6 @@
 
         // Conectar via Socket.IO para recibir eventos en tiempo real
         try {
-            const urlParams = new URLSearchParams(window.location.search);
             const streamToken = urlParams.get('token') || 'default';
             const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
             const socket = io(socketHost, {
