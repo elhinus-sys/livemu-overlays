@@ -78,6 +78,9 @@
         .message-content { font-weight: 800; color: var(--text-color); }
         .emote-container { display: inline-block; }
         .emote { max-width: calc(var(--emote-size) * 4); height: var(--emote-size); margin-right: -3px; vertical-align: middle; display: inline-block; margin-top: -4px; }
+        .chat-gif-wrapper { display: block; margin: 6px 0; }
+        .chat-gif { max-height: 140px; max-width: 240px; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 10px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); vertical-align: middle; }
+        .chat-gif-badge { background: rgba(145, 70, 255, 0.2); border: 1px solid rgba(145, 70, 255, 0.5); color: #cbb4fc; padding: 2px 8px; border-radius: 6px; font-size: 0.88em; display: inline-flex; align-items: center; gap: 5px; margin-top: 3px; }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
         
@@ -243,7 +246,7 @@
     });
 
         // --- MOTOR DE DIBUJADO DE MENSAJES ---
-        function addMessage(platform, user, message, badges = [], color = '#ffffff', twitchEmotes = null, msgId = null, customTTS = null) {
+        function addMessage(platform, user, message, badges = [], color = '#ffffff', twitchEmotes = null, msgId = null, customTTS = null, gifUrl = null) {
             if (chatContainer.innerHTML.includes('Esperando mensajes...')) chatContainer.innerHTML = '';
 
             const isScrolledToBottom = Math.ceil(chatContainer.scrollHeight - chatContainer.clientHeight) <= Math.ceil(chatContainer.scrollTop) + 15;
@@ -272,6 +275,12 @@
                 });
             }
 
+            // Detección de GIFs de Twitch / GIPHY
+            const gifMatch = message.match(/\[(.*?) GIF by (.*?)\]/i) || message.match(/\[(.*?) GIF\]/i);
+            if (gifMatch && !customTTS) {
+                customTTS = `${user} envió un GIF: ${gifMatch[1] || 'animado'}`;
+            }
+
             const words = message.split(' ');
             let processedMessage = words.map(word => {
                 if (twitchEmoteMap[word]) return `<span class="emote-container"><img src="${twitchEmoteMap[word]}" class="emote" alt="${word}"></span>`;
@@ -280,6 +289,18 @@
             }).join(' ');
 
             processedMessage = processedMessage.replace(/\[kick_emote:([^\]]+)\]/g, '<span class="emote-container"><img src="$1" class="emote"></span>');
+
+            if (gifUrl) {
+                if (gifMatch) {
+                    processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/gi, `<div class="chat-gif-wrapper"><img src="${gifUrl}" class="chat-gif" alt="$1" loading="lazy"></div>`);
+                    processedMessage = processedMessage.replace(/\[(.*?) GIF\]/gi, `<div class="chat-gif-wrapper"><img src="${gifUrl}" class="chat-gif" alt="$1" loading="lazy"></div>`);
+                } else if (!processedMessage.includes('chat-gif')) {
+                    processedMessage += `<div class="chat-gif-wrapper"><img src="${gifUrl}" class="chat-gif" alt="GIF" loading="lazy"></div>`;
+                }
+            } else if (gifMatch) {
+                processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/gi, '<span class="chat-gif-badge"><i class="fa-solid fa-film"></i> GIF: $1 <span style="opacity:0.75; font-size:0.85em;">(por $2)</span></span>');
+                processedMessage = processedMessage.replace(/\[(.*?) GIF\]/gi, '<span class="chat-gif-badge"><i class="fa-solid fa-film"></i> GIF: $1</span>');
+            }
 
             const badgesHtml = badges.map(b => `<img src="${b}" class="badge">`).join('');
 
@@ -346,7 +367,8 @@
                         if (twitchBadgesMap[key] && twitchBadgesMap[key][d.badges[key]]) badgeUrls.push(twitchBadgesMap[key][d.badges[key]]);
                     });
                 }
-                addMessage('twitch', d.user || d.username, d.message, badgeUrls, d.color || '#9146FF', d.emotes, 'msg-' + d.id);
+                const gifUrl = d.gifUrl || (d.tags && (d.tags['msg-param-giphy-id'] || d.tags['giphy-id']) ? `https://media.giphy.com/media/${d.tags['msg-param-giphy-id'] || d.tags['giphy-id']}/giphy.gif` : null);
+                addMessage('twitch', d.user || d.username, d.message, badgeUrls, d.color || '#9146FF', d.emotes, 'msg-' + d.id, null, gifUrl);
             }
         });
 
