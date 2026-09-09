@@ -80,7 +80,14 @@
         const upNextList = document.getElementById('widget-up-next-list');
         
         function updateWidget(data) {
-            if (!data || !data.currentSong) {
+            console.log('[Música] updateWidget recibido:', data);
+            if (!data) {
+                widgetContainer.classList.add('hidden-widget');
+                return;
+            }
+
+            const song = data.currentSong || (data.title ? data : null);
+            if (!song || !song.title) {
                 // En OBS se mantiene oculto si no hay música. En navegador web muestra aviso de espera.
                 const isObs = window.obsStudio || (window.navigator && window.navigator.userAgent.includes('OBS'));
                 if (isObs) {
@@ -94,8 +101,9 @@
             }
 
             widgetContainer.classList.remove('hidden-widget');
-            const { title, author } = data.currentSong;
-            widgetArtist.textContent = author || '';
+            const title = song.title || '';
+            const author = song.author || '';
+            widgetArtist.textContent = author;
             widgetTitle.textContent = title;
 
             setTimeout(() => {

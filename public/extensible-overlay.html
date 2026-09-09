@@ -437,6 +437,11 @@
         if (paramTheme) document.body.setAttribute('data-theme', paramTheme);
         if (paramLayout) document.body.setAttribute('data-layout', paramLayout);
 
+        // Si se abre en navegador web regular (no en OBS), asegurar fondo oscuro para que los números blancos sean visibles
+        if (!window.obsStudio && !(window.navigator && window.navigator.userAgent.includes('OBS'))) {
+            document.documentElement.style.backgroundColor = '#0b0f19';
+        }
+
         // --- ELEMENTOS DEL DOM ---
         const cardEl = document.getElementById('timer-card');
         const titleEl = document.getElementById('timer-title');
