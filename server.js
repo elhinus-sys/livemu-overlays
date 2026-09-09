@@ -64,13 +64,16 @@ Object.entries(overlayRoutes).forEach(([route, file]) => {
             let html = fs.readFileSync(filePath, 'utf8');
             // Reemplazar socket localhost por relativo a Render
             html = html.replace(/http:\/\/localhost:3011/g, '');
-            // Asegurar script de socket.io
+            // Asegurar script de socket.io y puente de token en el <head> para ejecutarse antes que los scripts del overlay
+            let headInject = '';
             if (!html.includes('/socket.io/socket.io.js')) {
-                html = html.replace('</head>', '  <script src="/socket.io/socket.io.js"></script>\n</head>');
+                headInject += '  <script src="/socket.io/socket.io.js"></script>\n';
             }
-            // Inyectar puente de token
             if (!html.includes('/token-bridge.js')) {
-                html = html.replace('</body>', '  <script src="/token-bridge.js"></script>\n</body>');
+                headInject += '  <script src="/token-bridge.js"></script>\n';
+            }
+            if (headInject) {
+                html = html.replace('</head>', `${headInject}</head>`);
             }
             res.type('html').send(html);
         } else {

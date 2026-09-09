@@ -577,7 +577,21 @@
         }, 80);
 
         // --- CONEXIÓN SOCKET.IO ---
-        const socket = io();
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamToken = urlParams.get('token') || 'default';
+        const socket = io({
+            query: { token: streamToken },
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000
+        });
+        window.socket = socket;
+
+        socket.on('connect', () => {
+            console.log('[Extensible] Conectado a Render en sala:', streamToken);
+            socket.emit('join-room', streamToken);
+            socket.emit('get_data', streamToken);
+        });
 
         function handleExtensibleUpdate(ext) {
             if (!ext) return;
