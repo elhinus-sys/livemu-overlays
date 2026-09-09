@@ -24,7 +24,9 @@ function getRoomState(token) {
             topLikers: {},
             topGifters: {},
             extensible: {},
-            music: null
+            music: null,
+            twitchStatus: null,
+            twitchBadges: null
         });
     }
     return rooms.get(key);
@@ -120,6 +122,12 @@ io.on('connection', (socket) => {
     if (initialState.extensible && Object.keys(initialState.extensible).length > 0) {
         socket.emit('extensible_data', initialState.extensible);
     }
+    if (initialState.twitchStatus) {
+        socket.emit('twitch-connection-status', initialState.twitchStatus);
+    }
+    if (initialState.twitchBadges) {
+        socket.emit('twitch-badges', initialState.twitchBadges);
+    }
 
     // Join room explicitly
     socket.on('join-room', (token) => {
@@ -137,6 +145,8 @@ io.on('connection', (socket) => {
         if (state.topLikers) socket.emit('sync_likers', Object.values(state.topLikers));
         if (state.topGifters) socket.emit('sync_gifters', Object.values(state.topGifters));
         if (state.extensible) socket.emit('extensible_data', state.extensible);
+        if (state.twitchStatus) socket.emit('twitch-connection-status', state.twitchStatus);
+        if (state.twitchBadges) socket.emit('twitch-badges', state.twitchBadges);
     });
 
     // Request data from OBS widgets
@@ -149,12 +159,21 @@ io.on('connection', (socket) => {
         if (state.widgetData) socket.emit('data', state.widgetData);
         if (state.extensible && Object.keys(state.extensible).length > 0) socket.emit('extensible_data', state.extensible);
         if (state.music) socket.emit('music-update', state.music);
+        if (state.twitchStatus) socket.emit('twitch-connection-status', state.twitchStatus);
+        if (state.twitchBadges) socket.emit('twitch-badges', state.twitchBadges);
     });
 
     socket.on('get_music', (token) => {
         const roomKey = String(token || socket.currentToken || 'default').trim();
         const state = getRoomState(roomKey);
         if (state.music) socket.emit('music-update', state.music);
+    });
+
+    socket.on('request-twitch-status', (token) => {
+        const roomKey = String(token || socket.currentToken || 'default').trim();
+        const state = getRoomState(roomKey);
+        if (state.twitchStatus) socket.emit('twitch-connection-status', state.twitchStatus);
+        if (state.twitchBadges) socket.emit('twitch-badges', state.twitchBadges);
     });
 
     // Events from LiveMu app on PC
@@ -178,6 +197,8 @@ io.on('connection', (socket) => {
         }
         if (event === 'extensible_data' && data) state.extensible = data;
         if (event === 'music-update' && data) state.music = data;
+        if (event === 'twitch-connection-status' && data) state.twitchStatus = data;
+        if (event === 'twitch-badges' && data) state.twitchBadges = data;
 
         // Broadcast to all OBS widgets connected in this room
         io.to(`room_${roomKey}`).emit(event, data);

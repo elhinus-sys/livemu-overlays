@@ -374,7 +374,7 @@
                 console.log('[Chat] Conectado a sala:', streamToken);
                 socket.emit('join-room', streamToken);
                 socket.emit('get_data', streamToken);
-                socket.emit('request-twitch-status');
+                socket.emit('request-twitch-status', streamToken);
             });
             socket.on('twitch-badges', (map) => {
                 twitchBadgesMap = map;
