@@ -23,7 +23,8 @@ function getRoomState(token) {
             gifts: [],
             topLikers: {},
             topGifters: {},
-            extensible: {}
+            extensible: {},
+            music: null
         });
     }
     return rooms.get(key);
@@ -146,6 +147,14 @@ io.on('connection', (socket) => {
         if (state.topGifters) socket.emit('sync_gifters', Object.values(state.topGifters));
         if (state.gifts) socket.emit('update-gifts', state.gifts);
         if (state.widgetData) socket.emit('data', state.widgetData);
+        if (state.extensible && Object.keys(state.extensible).length > 0) socket.emit('extensible_data', state.extensible);
+        if (state.music) socket.emit('music-update', state.music);
+    });
+
+    socket.on('get_music', (token) => {
+        const roomKey = String(token || socket.currentToken || 'default').trim();
+        const state = getRoomState(roomKey);
+        if (state.music) socket.emit('music-update', state.music);
     });
 
     // Events from LiveMu app on PC
@@ -154,7 +163,10 @@ io.on('connection', (socket) => {
         const state = getRoomState(roomKey);
 
         // Update in-memory state
-        if (event === 'data' && data) state.widgetData = data;
+        if (event === 'data' && data) {
+            state.widgetData = data;
+            if (data.extensible) state.extensible = data.extensible;
+        }
         if (event === 'update-gifts' && Array.isArray(data)) state.gifts = data;
         if (event === 'sync_likers' && Array.isArray(data)) {
             state.topLikers = {};
@@ -165,6 +177,7 @@ io.on('connection', (socket) => {
             data.forEach(g => state.topGifters[g.uid] = g);
         }
         if (event === 'extensible_data' && data) state.extensible = data;
+        if (event === 'music-update' && data) state.music = data;
 
         // Broadcast to all OBS widgets connected in this room
         io.to(`room_${roomKey}`).emit(event, data);

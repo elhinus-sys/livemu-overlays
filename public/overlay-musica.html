@@ -114,10 +114,19 @@
             }
         }
 
-        const socket = io("http://localhost:3011", {
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamToken = urlParams.get('token') || 'default';
+        const socket = io({
+            query: { token: streamToken },
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000
+        });
+
+        socket.on('connect', () => {
+            console.log('[Música] Conectado a Render en sala:', streamToken);
+            socket.emit('join-room', streamToken);
+            socket.emit('get_music', streamToken);
         });
 
         socket.on('music-update', updateWidget);
