@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extensible Timer Overlay</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00f2fe;
+            --primary-rgb: 0, 242, 254;
+            --accent: #4facfe;
+            --accent-rgb: 79, 172, 254;
+            --glow: rgba(0, 242, 254, 0.45);
+            --bg-card: rgba(13, 17, 28, 0.85);
+            --border-card: rgba(0, 242, 254, 0.3);
+            --text-color: #ffffff;
+            --danger: #ff4757;
+            --warning: #ffa502;
+            --success: #2ed573;
+        }
+
+        /* --- TEMAS VISUALES --- */
+        body[data-theme="gold"] {
+            --primary: #ffd700;
+            --primary-rgb: 255, 215, 0;
+            --accent: #ffa502;
+            --accent-rgb: 255, 165, 2;
+            --glow: rgba(255, 215, 0, 0.45);
+            --border-card: rgba(255, 215, 0, 0.35);
+        }
+
+        body[data-theme="purple"] {
+            --primary: #c084fc;
+            --primary-rgb: 192, 132, 252;
+            --accent: #e879f9;
+            --accent-rgb: 232, 121, 249;
+            --glow: rgba(192, 132, 252, 0.45);
+            --border-card: rgba(192, 132, 252, 0.35);
+        }
+
+        body[data-theme="red"] {
+            --primary: #ff4757;
+            --primary-rgb: 255, 71, 87;
+            --accent: #ff6b81;
+            --accent-rgb: 255, 107, 129;
+            --glow: rgba(255, 71, 87, 0.45);
+            --border-card: rgba(255, 71, 87, 0.35);
+        }
+
+        body[data-theme="matrix"] {
+            --primary: #2ed573;
+            --primary-rgb: 46, 213, 115;
+            --accent: #7bed9f;
+            --accent-rgb: 123, 237, 159;
+            --glow: rgba(46, 213, 115, 0.45);
+            --border-card: rgba(46, 213, 115, 0.35);
+        }
+
+        /* --- TEMA SIMPLE (SOLO TIEMPO) --- */
+        body[data-theme="simple"] {
+            --primary: #ffffff;
+            --primary-rgb: 255, 255, 255;
+            --accent: #e0e0e0;
+            --accent-rgb: 224, 224, 224;
+            --glow: rgba(0, 0, 0, 0.9);
+            --border-card: transparent;
+            --bg-card: transparent;
+        }
+
+        body[data-theme="simple"] .timer-card {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            padding: 0 !important;
+            min-width: auto !important;
+        }
+
+        body[data-theme="simple"] .timer-header {
+            display: none !important;
+        }
+
+        body[data-theme="simple"] .timer-body {
+            margin: 0 !important;
+        }
+
+        body[data-theme="simple"] .time-digits {
+            font-size: 4rem;
+            color: #ffffff;
+            font-weight: 800;
+            letter-spacing: 2px;
+            /* Sombra nítida de alto contraste para máxima legibilidad sobre cualquier fondo de OBS */
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95), 0 0 4px #000, 2px 2px 2px #000;
+        }
+
+        body[data-theme="simple"] .time-ms {
+            font-size: 1.8rem;
+            color: #ffffff;
+            opacity: 0.85;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95), 0 0 4px #000;
+        }
+
+        body[data-theme="simple"] .added-time-pill {
+            bottom: -32px;
+            background: rgba(10, 10, 15, 0.92);
+            color: #2ed573;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.9);
+            font-size: 0.8rem;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: transparent;
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-color);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 8px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .drag-region {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 25px;
+            -webkit-app-region: drag;
+            z-index: 1000;
+        }
+
+        /* --- CONTENEDOR PRINCIPAL --- */
+        .timer-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-card);
+            border-radius: 16px;
+            padding: 12px 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px var(--glow);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            min-width: 280px;
+            max-width: 95vw;
+            transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+        }
+
+        .timer-card.paused {
+            border-color: rgba(255, 165, 2, 0.4);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 165, 2, 0.25);
+        }
+
+        .timer-card.ended {
+            border-color: var(--danger);
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.7), 0 0 25px rgba(255, 71, 87, 0.6);
+            animation: pulse-ended 1.5s infinite;
+        }
+
+        @keyframes pulse-ended {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 71, 87, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(255, 71, 87, 0.8); }
+        }
+
+        /* --- HEADER: ICONO + TITULO + BADGE --- */
+        .timer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 12px;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hourglass-icon {
+            font-size: 1.3rem;
+            color: var(--primary);
+            filter: drop-shadow(0 0 8px var(--primary));
+            transition: transform 0.3s;
+        }
+
+        .active .hourglass-icon {
+            animation: spin-slow 8s linear infinite;
+        }
+
+        @keyframes spin-slow {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .timer-title {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #ffffff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #aaa;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #888;
+        }
+
+        .status-badge.active {
+            background: rgba(46, 213, 115, 0.15);
+            border-color: rgba(46, 213, 115, 0.4);
+            color: #2ed573;
+        }
+        .status-badge.active .status-dot {
+            background: #2ed573;
+            box-shadow: 0 0 8px #2ed573;
+            animation: blink 1.2s infinite;
+        }
+
+        .status-badge.paused {
+            background: rgba(255, 165, 2, 0.15);
+            border-color: rgba(255, 165, 2, 0.4);
+            color: #ffa502;
+        }
+        .status-badge.paused .status-dot {
+            background: #ffa502;
+        }
+
+        .status-badge.ended {
+            background: rgba(255, 71, 87, 0.15);
+            border-color: rgba(255, 71, 87, 0.4);
+            color: #ff4757;
+        }
+        .status-badge.ended .status-dot {
+            background: #ff4757;
+            animation: blink 0.6s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* --- DISPLAY DE TIEMPO --- */
+        .time-display-container {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            font-family: 'Orbitron', monospace;
+            font-weight: 900;
+            line-height: 1;
+            margin: 6px 0;
+            text-shadow: 0 0 15px var(--glow);
+        }
+
+        .time-digits {
+            font-size: 3.4rem;
+            color: #ffffff;
+            letter-spacing: 2px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .time-ms {
+            font-size: 1.6rem;
+            color: var(--primary);
+            opacity: 0.9;
+            margin-left: 4px;
+            font-variant-numeric: tabular-nums;
+            display: none;
+        }
+
+        .time-ms.show {
+            display: inline-block;
+        }
+
+        /* --- NOTIFICACIÓN FLOTANTE DE TIEMPO AÑADIDO --- */
+        .added-time-pill {
+            position: absolute;
+            bottom: -16px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: #000;
+            font-weight: 900;
+            font-size: 0.8rem;
+            padding: 4px 14px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px var(--glow);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            opacity: 0;
+            transform: translateY(10px) scale(0.9);
+            transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            white-space: nowrap;
+            z-index: 100;
+        }
+
+        .added-time-pill.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* --- ALERTA DE FINALIZACIÓN --- */
+        .time-up-banner {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: var(--danger);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 5px;
+            display: none;
+            animation: shake 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(-2px); }
+            100% { transform: translateX(2px); }
+        }
+
+        /* --- MODO COMPACTO / MINIMALISTA (vía URL ?layout=compact) --- */
+        body[data-layout="compact"] .timer-card {
+            padding: 10px 18px;
+            min-width: auto;
+            border-radius: 14px;
+        }
+        body[data-layout="compact"] .time-digits {
+            font-size: 2.2rem;
+        }
+        body[data-layout="compact"] .timer-header {
+            margin-bottom: 4px;
+            padding-bottom: 4px;
+        }
+        body[data-layout="compact"] .timer-title {
+            font-size: 0.85rem;
+        }
+
+        body[data-layout="minimal"] .timer-card {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            backdrop-filter: none;
+            padding: 0;
+        }
+        body[data-layout="minimal"] .timer-header {
+            display: none;
+        }
+        body[data-layout="minimal"] .time-digits {
+            font-size: 3.8rem;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 20px var(--glow);
+        }
+    </style>
+</head>
+<body data-theme="neon">
+
+    <div class="drag-region"></div>
+
+    <div class="timer-card" id="timer-card">
+        <!-- HEADER -->
+        <div class="timer-header">
+            <div class="header-left">
+                <i class="fa-solid fa-hourglass-half hourglass-icon" id="hourglass-icon"></i>
+                <span class="timer-title" id="timer-title">EXTENSIBLE</span>
+            </div>
+            <div class="status-badge" id="status-badge">
+                <span class="status-dot"></span>
+                <span id="status-text">PAUSADO</span>
+            </div>
+        </div>
+
+        <!-- RELOJ -->
+        <div class="time-display-container">
+            <span class="time-digits" id="time-digits">01:00:00</span>
+            <span class="time-ms" id="time-ms">.00</span>
+        </div>
+
+        <div class="time-up-banner" id="time-up-banner">
+            <i class="fa-solid fa-triangle-exclamation"></i> ¡TIEMPO TERMINADO!
+        </div>
+
+        <!-- NOTIFICACION DE TIEMPO AÑADIDO -->
+        <div class="added-time-pill" id="added-pill">
+            <i class="fa-solid fa-bolt"></i>
+            <span id="added-text">+30s</span>
+        </div>
+    </div>
+
+    <script>
+        // --- PARÁMETROS URL ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramTheme = urlParams.get('theme');
+        const paramLayout = urlParams.get('layout');
+        const paramShowMs = urlParams.get('showMs');
+        const paramTitle = urlParams.get('title');
+
+        if (paramTheme) document.body.setAttribute('data-theme', paramTheme);
+        if (paramLayout) document.body.setAttribute('data-layout', paramLayout);
+
+        // --- ELEMENTOS DEL DOM ---
+        const cardEl = document.getElementById('timer-card');
+        const titleEl = document.getElementById('timer-title');
+        const badgeEl = document.getElementById('status-badge');
+        const statusTextEl = document.getElementById('status-text');
+        const digitsEl = document.getElementById('time-digits');
+        const msEl = document.getElementById('time-ms');
+        const timeUpBanner = document.getElementById('time-up-banner');
+        const addedPill = document.getElementById('added-pill');
+        const addedText = document.getElementById('added-text');
+
+        // --- ESTADO LOCAL ---
+        let currentSeconds = 3600;
+        let isRunning = false;
+        let labelText = paramTitle || "EXTENSIBLE";
+        let showMilliseconds = paramShowMs !== null ? paramShowMs === 'true' : false;
+        let lastSyncTimestamp = performance.now();
+        let lastAddedTimestamp = 0;
+        let pillTimeout = null;
+
+        // Sonido de alerta sintetizado (sin necesidad de archivos de audio externos)
+        function playChime(freq = 880, duration = 0.15) {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        // Formatear segundos en HH:MM:SS y ms
+        function formatTime(totalSecs) {
+            const safeSecs = Math.max(0, totalSecs);
+            const h = Math.floor(safeSecs / 3600);
+            const m = Math.floor((safeSecs % 3600) / 60);
+            const s = Math.floor(safeSecs % 60);
+            const ms = Math.floor((safeSecs % 1) * 100);
+
+            const hStr = h.toString().padStart(2, '0');
+            const mStr = m.toString().padStart(2, '0');
+            const sStr = s.toString().padStart(2, '0');
+            const msStr = '.' + ms.toString().padStart(2, '0');
+
+            return { timeStr: `${hStr}:${mStr}:${sStr}`, msStr };
+        }
+
+        // Mostrar notificación de donación / tiempo agregado
+        function showAddedNotification(seconds, user, reason) {
+            let label = `+${Math.round(seconds)}s`;
+            if (seconds >= 3600) {
+                const hrs = Math.round(seconds / 3600 * 10) / 10;
+                label = `+${hrs}h`;
+            } else if (seconds >= 60) {
+                const mins = Math.round(seconds / 60);
+                label = `+${mins}m`;
+            }
+
+            if (user && user !== 'Admin' && user !== 'User') {
+                label += ` de ${user}`;
+            }
+
+            addedText.innerText = label;
+            addedPill.classList.add('show');
+            // playChime(1046.5, 0.2); // Disabled: no sound on added time
+
+            if (pillTimeout) clearTimeout(pillTimeout);
+            pillTimeout = setTimeout(() => {
+                addedPill.classList.remove('show');
+            }, 3500);
+        }
+
+        // Actualizar la interfaz visual
+        function renderUI() {
+            titleEl.innerText = labelText;
+            
+            const { timeStr, msStr } = formatTime(currentSeconds);
+            digitsEl.innerText = timeStr;
+            msEl.innerText = msStr;
+
+            if (showMilliseconds) {
+                if (!msEl.classList.contains('show')) msEl.classList.add('show');
+            } else {
+                if (msEl.classList.contains('show')) msEl.classList.remove('show');
+            }
+
+            // Estado (solo mutar DOM si el estado realmente cambia)
+            let newState = 'paused';
+            if (currentSeconds <= 0) newState = 'ended';
+            else if (isRunning) newState = 'active';
+
+            if (newState !== lastRenderedState) {
+                lastRenderedState = newState;
+                cardEl.classList.remove('active', 'paused', 'ended');
+                badgeEl.classList.remove('active', 'paused', 'ended');
+                cardEl.classList.add(newState);
+                badgeEl.classList.add(newState);
+
+                if (newState === 'ended') {
+                    statusTextEl.innerText = 'FINALIZADO';
+                    timeUpBanner.style.display = 'block';
+                } else if (newState === 'active') {
+                    statusTextEl.innerText = 'ACTIVO';
+                    timeUpBanner.style.display = 'none';
+                } else {
+                    statusTextEl.innerText = 'PAUSADO';
+                    timeUpBanner.style.display = 'none';
+                }
+            }
+        }
+
+        let lastRenderedState = '';
+
+        // --- TICKER INTERPOLADO ---
+        // Se ejecuta suavemente sin bloquear el hilo
+        setInterval(() => {
+            const now = performance.now();
+            const deltaSecs = (now - lastSyncTimestamp) / 1000;
+            lastSyncTimestamp = now;
+
+            if (isRunning && currentSeconds > 0) {
+                currentSeconds = Math.max(0, currentSeconds - deltaSecs);
+                if (currentSeconds === 0) {
+                    isRunning = false;
+                    playChime(440, 0.5);
+                }
+            }
+
+            renderUI();
+        }, 80);
+
+        // --- CONEXIÓN SOCKET.IO ---
+        const socket = io();
+
+        function handleExtensibleUpdate(ext) {
+            if (!ext) return;
+
+            // Sincronizar tiempo del servidor
+            if (ext.time !== undefined) {
+                currentSeconds = Number(ext.time);
+                lastSyncTimestamp = performance.now();
+            }
+
+            // Sincronizar estado activo/pausado
+            if (ext.active !== undefined) {
+                isRunning = !!ext.active;
+            }
+
+            // Sincronizar título
+            if (ext.label !== undefined && !paramTitle) {
+                labelText = ext.label || "EXTENSIBLE";
+            }
+
+            // Sincronizar milisegundos
+            if (ext.showMs !== undefined && paramShowMs === null) {
+                showMilliseconds = !!ext.showMs;
+            }
+
+            // Sincronizar tema de color si no está forzado por URL
+            if (ext.theme && !paramTheme) {
+                document.body.setAttribute('data-theme', ext.theme);
+            }
+
+            // Detectar si hubo una adición de tiempo reciente
+            if (ext.lastAdded && ext.lastAdded.ts && ext.lastAdded.ts !== lastAddedTimestamp) {
+                lastAddedTimestamp = ext.lastAdded.ts;
+                showAddedNotification(ext.lastAdded.seconds, ext.lastAdded.user, ext.lastAdded.reason);
+            }
+
+            renderUI();
+        }
+
+        socket.on('extensible_data', handleExtensibleUpdate);
+
+        socket.on('data', (data) => {
+            if (!data || !data.extensible) return;
+            handleExtensibleUpdate(data.extensible);
+        });
+
+        // Recargar el widget instantáneamente cuando el usuario guarde cambios en la app
+        socket.on('reload_overlays', () => {
+            location.reload();
+        });
+
+        // Primer render inmediato
+        renderUI();
+    </script>
+</body>
+</html>

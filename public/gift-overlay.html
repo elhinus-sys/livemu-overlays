@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gift Overlay</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: rgba(0, 0, 0, 0); /* Transparente */
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+        
+        /* Área arrastrable para mover la ventana */
+        .drag-region {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            -webkit-app-region: drag;
+            z-index: 1000;
+        }
+        .drag-region:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .widget-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .trigger-item {
+            background: rgba(20, 20, 20, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100px;
+            height: 145px;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: transform 0.2s;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .action-image-container {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 8px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .action-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
+        }
+
+        .action-placeholder {
+            font-size: 2rem;
+            color: #ffd700;
+        }
+
+        .repetition-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #fff;
+            color: #000;
+            font-weight: 800;
+            font-size: 0.8rem;
+            padding: 2px 5px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .gift-image {
+            width: 35px;
+            height: 35px;
+            object-fit: contain;
+            /* margin-top removed */
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+        }
+
+        .gift-name {
+            font-size: 0.75rem;
+            color: #fff;
+            margin-top: 5px;
+            text-align: center;
+            font-weight: 600;
+            text-shadow: 0 1px 2px black;
+        }
+        
+        /* New Styles for Likes/AllLikes */
+        .like-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 35px;
+            height: 35px;
+        }
+        .like-heart { font-size: 2rem; color: #ff4757; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3)); }
+        .all-likes-heart { color: #00a8ff; } /* Light Blue */
+        .like-count { position: absolute; font-size: 0.7rem; font-weight: 800; color: white; text-shadow: 0 0 3px black; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        
+        .widget-icon { font-size: 1.8rem; color: white; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
+        
+        .icon-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 35px;
+            height: 35px;
+        }
+        .icon-blue { color: #00a8ff; }
+        .icon-green { color: #2ecc71; }
+        .icon-gold { color: #ffd700; }
+    </style>
+</head>
+<body>
+    <div class="drag-region" title="Arrastra desde aquí"></div>
+    <div class="widget-grid" id="grid">
+        <!-- Los items se generarán aquí -->
+    </div>
+
+    <script>
+        let ipcRenderer;
+        try {
+            ipcRenderer = require('electron').ipcRenderer;
+        } catch (e) {
+            console.log('Modo navegador detectado (OBS)');
+        }
+
+        let giftsCache = [];
+        let templates = [];
+        let activeTemplateId = null;
+
+        // Cargar regalos
+        if (ipcRenderer) {
+            ipcRenderer.send('loadCachedGifts');
+            ipcRenderer.on('getAvailableGifts', (event, args) => {
+                if(args.success && args.gifts) {
+                    giftsCache = args.gifts;
+                    render();
+                }
+            });
+        }
+
+        let lastRenderSignature = '';
+
+        function renderIfChanged(force = false) {
+            const activeTpl = templates.find(x => String(x.id) === String(activeTemplateId));
+            const currentSig = `${activeTemplateId}_${activeTpl?.triggers?.length || 0}_${giftsCache.length}_${JSON.stringify(activeTpl?.triggers || [])}`;
+            if (!force && currentSig === lastRenderSignature) return;
+            lastRenderSignature = currentSig;
+            render();
+        }
+
+        // Escuchar cambios en localStorage
+        window.addEventListener('storage', () => {
+            loadData();
+        });
+
+        // Loop de actualización pasiva sin destruir el DOM innecesariamente
+        setInterval(() => {
+            loadData();
+        }, 3000);
+
+        function loadData() {
+            if (ipcRenderer) {
+                try {
+                    templates = JSON.parse(localStorage.getItem('s4e_local_templates') || '[]');
+                    activeTemplateId = localStorage.getItem('s4e_active_template_id');
+                    renderIfChanged();
+                } catch(e) {}
+            } else {
+                // Modo HTTP (OBS)
+                fetch('http://localhost:3011/data')
+                    .then(res => res.json())
+                    .then(data => {
+                        templates = data.templates || [];
+                        activeTemplateId = data.activeTemplateId;
+                        if(data.gifts && data.gifts.length > 0) giftsCache = data.gifts;
+                        renderIfChanged();
+                    })
+                    .catch(err => console.error("Error fetching data:", err));
+            }
+        }
+
+        function render() {
+            const grid = document.getElementById('grid');
+            
+            if (!activeTemplateId) {
+                grid.innerHTML = '<div style="color:white; background:rgba(0,0,0,0.5); padding:10px; border-radius:5px;">Selecciona una plantilla en el panel principal</div>';
+                return;
+            }
+
+            const t = templates.find(x => String(x.id) === String(activeTemplateId));
+            if (!t || !t.triggers) {
+                grid.innerHTML = '<div style="color:white;">Plantilla vacía</div>';
+                return;
+            }
+
+            // Mostrar todos los triggers activos
+            const activeTriggers = t.triggers.filter(tr => tr.active);
+
+            // Generar HTML
+            const html = activeTriggers.map(tr => {
+                let bottomContent = '';
+                
+                if (tr.type === 'Regalo') {
+                    let giftImg = 'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/802a21ae29f9fae5abe3693de9f874bd~tplv-obj.webp';
+                    if (tr.giftId) {
+                        const g = giftsCache.find(x => String(x.id) === String(tr.giftId));
+                        if (g) {
+                            if (g.image && g.image.url_list) giftImg = g.image.url_list[0];
+                            else if (g.icon) giftImg = g.icon;
+                        }
+                    }
+                    // [FIX] Proxy para imágenes de regalos locales (si las hay)
+                    if (!ipcRenderer && giftImg && (giftImg.startsWith('file:') || giftImg.match(/^[a-zA-Z]:/))) {
+                        giftImg = 'http://localhost:3011/local-file?path=' + encodeURIComponent(giftImg);
+                    }
+                    bottomContent = `<img src="${giftImg}" class="gift-image">`;
+                } else if (tr.type === 'Likes') {
+                    bottomContent = `
+                    <div class="like-container">
+                        <i class="fa-solid fa-heart like-heart"></i>
+                        <span class="like-count">${tr.amount || 15}</span>
+                    </div>`;
+                } else if (tr.type === 'AllLikes') {
+                    bottomContent = `
+                    <div class="like-container">
+                        <i class="fa-solid fa-heart like-heart all-likes-heart"></i>
+                        <span class="like-count">${tr.amount || 100}</span>
+                    </div>`;
+                } else if (tr.type === 'Compartir') {
+                    bottomContent = `<div class="icon-container"><i class="fa-solid fa-share widget-icon"></i></div>`;
+                } else if (tr.type === 'Follow') {
+                    bottomContent = `<div class="icon-container"><i class="fa-solid fa-user-plus widget-icon icon-blue"></i></div>`;
+                } else if (tr.type === 'Join') {
+                    bottomContent = `<div class="icon-container"><i class="fa-solid fa-door-open widget-icon icon-green"></i></div>`;
+                } else if (tr.type === 'Chat') {
+                    bottomContent = `<div class="icon-container"><i class="fa-solid fa-comments widget-icon"></i></div>`;
+                } else if (tr.type === 'Coins') {
+                    bottomContent = `<div class="icon-container"><i class="fa-solid fa-coins widget-icon icon-gold"></i></div>`;
+                } else if (tr.type === 'Subscribe') {
+                    bottomContent = `<div class="icon-container"><i class="fa-solid fa-star widget-icon icon-gold"></i></div>`;
+                }
+
+                // Imagen de acción
+                let actionContent = `<i class="fa-solid fa-terminal action-placeholder"></i>`;
+                if (tr.functionImage) {
+                    let imgSrc = tr.functionImage;
+                    // Si estamos en modo navegador (OBS) y es una ruta local, usar el proxy del servidor
+                    if (!ipcRenderer && (imgSrc.startsWith('file:') || imgSrc.match(/^[a-zA-Z]:/))) {
+                        imgSrc = 'http://localhost:3011/local-file?path=' + encodeURIComponent(imgSrc);
+                    }
+                    actionContent = `<img src="${imgSrc}" class="action-image">`;
+                }
+
+                return `
+                <div class="trigger-item">
+                    <div class="repetition-badge">${tr.actionRepetition || 1}x</div>
+                    <div class="action-image-container">
+                        ${actionContent}
+                    </div>
+                    ${bottomContent}
+                </div>
+                `;
+            }).join('');
+
+            if (grid.innerHTML !== html) {
+                grid.innerHTML = html;
+            }
+        }
+
+        loadData();
+        render();
+    </script>
+</body>
+</html>
