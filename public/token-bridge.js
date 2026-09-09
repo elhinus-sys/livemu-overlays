@@ -20,42 +20,62 @@
         return originalFetch.apply(this, arguments);
     };
 
-    // 2. Interceptar window.io para que cualquier overlay use automáticamente la sala correcta
-    function hookSocketIo() {
-        if (typeof window.io === 'function') {
-            if (window.io.__livemu_hooked) return;
-            const origIo = window.io;
-            const hookedIo = function(uri, opts) {
-                if (typeof uri === 'object' && uri !== null) {
-                    opts = uri;
-                    uri = undefined;
-                }
-                opts = opts || {};
-                opts.query = opts.query || {};
-                if (typeof opts.query === 'object') {
-                    opts.query.token = streamToken;
-                }
-                // Limpiar URLs locales fijas para que use el host actual (Render)
-                if (typeof uri === 'string' && (uri.includes('localhost:3011') || uri.includes('localhost:3010'))) {
-                    uri = undefined;
-                }
+    // 2. Interceptar y encapsular window.io
+    function wrapIo(origIo) {
+        if (!origIo || origIo.__livemu_hooked) return origIo;
+        const hookedIo = function(uri, opts) {
+            if (typeof uri === 'object' && uri !== null) {
+                opts = uri;
+                uri = undefined;
+            }
+            opts = opts || {};
+            opts.query = opts.query || {};
+            if (typeof opts.query === 'object') {
+                opts.query.token = streamToken;
+            }
 
-                const socket = origIo(uri, opts);
-                window.socket = socket;
+            // Usar siempre el origin actual para evitar conectar a 'undefined'
+            const targetHost = (typeof window !== 'undefined' && window.location && window.location.origin) 
+                ? window.location.origin 
+                : undefined;
 
-                socket.on('connect', () => {
-                    console.log(`[LiveMu Cloud] Conectado exitosamente a sala: ${streamToken}`);
-                    socket.emit('join-room', streamToken);
-                    socket.emit('get_data', streamToken);
-                });
+            let finalUri = uri;
+            if (!finalUri || (typeof finalUri === 'string' && (finalUri.includes('localhost:3011') || finalUri.includes('localhost:3010')))) {
+                finalUri = targetHost;
+            }
 
-                return socket;
-            };
-            hookedIo.__livemu_hooked = true;
-            window.io = hookedIo;
-        } else {
-            setTimeout(hookSocketIo, 30);
-        }
+            const socket = finalUri ? origIo(finalUri, opts) : origIo(opts);
+            window.socket = socket;
+
+            socket.on('connect', () => {
+                console.log(`[LiveMu Cloud] Conectado exitosamente a sala: ${streamToken}`);
+                socket.emit('join-room', streamToken);
+                socket.emit('get_data', streamToken);
+                socket.emit('get_music', streamToken);
+            });
+
+            return socket;
+        };
+        hookedIo.__livemu_hooked = true;
+        return hookedIo;
     }
-    hookSocketIo();
+
+    if (window.io) {
+        window.io = wrapIo(window.io);
+    }
+
+    // Interceptar cualquier script posterior de Socket.io que intente sobreescribir window.io
+    try {
+        let currentIo = window.io;
+        Object.defineProperty(window, 'io', {
+            configurable: true,
+            enumerable: true,
+            get: function() {
+                return currentIo;
+            },
+            set: function(newVal) {
+                currentIo = wrapIo(newVal);
+            }
+        });
+    } catch(e) {}
 })();

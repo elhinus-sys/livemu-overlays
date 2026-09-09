@@ -579,7 +579,8 @@
         // --- CONEXIÓN SOCKET.IO ---
         const urlParams = new URLSearchParams(window.location.search);
         const streamToken = urlParams.get('token') || 'default';
-        const socket = io({
+        const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+        const socket = io(socketHost, {
             query: { token: streamToken },
             reconnection: true,
             reconnectionAttempts: Infinity,

@@ -81,7 +81,15 @@
         
         function updateWidget(data) {
             if (!data || !data.currentSong) {
-                widgetContainer.classList.add('hidden-widget');
+                // En OBS se mantiene oculto si no hay música. En navegador web muestra aviso de espera.
+                const isObs = window.obsStudio || (window.navigator && window.navigator.userAgent.includes('OBS'));
+                if (isObs) {
+                    widgetContainer.classList.add('hidden-widget');
+                } else {
+                    widgetContainer.classList.remove('hidden-widget');
+                    widgetTitle.textContent = 'Esperando música de LiveMu...';
+                    widgetArtist.textContent = 'Pon una canción en la app para verla aquí';
+                }
                 return;
             }
 
