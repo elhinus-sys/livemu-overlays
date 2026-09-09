@@ -460,7 +460,11 @@
         }
 
         // --- CONEXIÓN SOCKET ---
-        const socket = typeof io !== 'undefined' ? io("http://localhost:3011", {
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamToken = urlParams.get('token') || 'default';
+        const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+        const socket = typeof io !== 'undefined' ? io(socketHost, {
+            query: { token: streamToken },
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000
@@ -468,6 +472,14 @@
             on: function(event, callback) { this[event] = callback; },
             emit: function(event, data) { console.log('Socket emit:', event, data); }
         };
+
+        if (typeof io !== 'undefined') {
+            socket.on('connect', () => {
+                console.log('[Top Likes] Conectado a sala:', streamToken);
+                socket.emit('join-room', streamToken);
+                socket.emit('get_data', streamToken);
+            });
+        }
 
         socket.on('like_event', (data) => {
             if (mode === 'app' || typeof io === 'undefined') {
@@ -496,7 +508,9 @@
             updateList();
         });
 
-        socket.emit('get_data');
+        if (typeof io !== 'undefined') {
+            socket.emit('get_data', streamToken);
+        }
 
         // ==========================================
         // MODO DEMOSTRACIÓN

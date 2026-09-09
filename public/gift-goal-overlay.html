@@ -37,7 +37,21 @@
         </div>
     </div>
     <script>
-        const socket = io();
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamToken = urlParams.get('token') || 'default';
+        const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+        const socket = io(socketHost, {
+            query: { token: streamToken },
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000
+        });
+
+        socket.on('connect', () => {
+            console.log('[Meta Regalos] Conectado a sala:', streamToken);
+            socket.emit('join-room', streamToken);
+            socket.emit('get_data', streamToken);
+        });
         let currentCoins = 0;
         let targetCoins = 1000;
         let labelText = "Meta de Regalos";
@@ -84,6 +98,15 @@
             // Actualizar progreso en vivo
             if (data.sessionGlobalCoins !== undefined) {
                 currentCoins = data.sessionGlobalCoins;
+            }
+            updateUI();
+        });
+
+        socket.on('gift_event', (data) => {
+            if (data && data.totalCoins !== undefined) {
+                currentCoins = data.totalCoins;
+            } else if (data && data.calculatedCoins) {
+                currentCoins += Number(data.calculatedCoins);
             }
             updateUI();
         });

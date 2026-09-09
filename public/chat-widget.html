@@ -223,9 +223,13 @@
             return USER_COLORS[index];
         }
 
-        // [FIX] Conexión robusta a localhost:3011 con reintentos infinitos
+        // Conexión dinámica a Render o localhost con soporte para tokens de sala
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamToken = urlParams.get('token') || 'default';
+        const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
         try { 
-            socket = io("http://localhost:3011", {
+            socket = io(socketHost, {
+                query: { token: streamToken },
                 reconnection: true,
                 reconnectionAttempts: Infinity,
                 reconnectionDelay: 1000,
@@ -367,6 +371,9 @@
 
         if(socket) {
             socket.on('connect', () => {
+                console.log('[Chat] Conectado a sala:', streamToken);
+                socket.emit('join-room', streamToken);
+                socket.emit('get_data', streamToken);
                 socket.emit('request-twitch-status');
             });
             socket.on('twitch-badges', (map) => {

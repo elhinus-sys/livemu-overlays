@@ -138,6 +138,7 @@
         <!-- Los items se generarán aquí -->
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script>
         let ipcRenderer;
         try {
@@ -150,7 +151,44 @@
         let templates = [];
         let activeTemplateId = null;
 
-        // Cargar regalos
+        // Parámetros de token de sala y host
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamToken = urlParams.get('token') || 'default';
+        const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+
+        // Conexión Socket.IO en tiempo real
+        let socket = null;
+        if (typeof io !== 'undefined') {
+            socket = io(socketHost, {
+                query: { token: streamToken },
+                reconnection: true,
+                reconnectionAttempts: Infinity,
+                reconnectionDelay: 1000
+            });
+            socket.on('connect', () => {
+                console.log('[OBS Widget] Conectado a sala:', streamToken);
+                socket.emit('join-room', streamToken);
+                socket.emit('get_data', streamToken);
+            });
+            socket.on('data', (data) => {
+                if (!data) return;
+                templates = data.templates || [];
+                activeTemplateId = data.activeTemplateId;
+                if (data.gifts && data.gifts.length > 0) giftsCache = data.gifts;
+                renderIfChanged();
+            });
+            socket.on('update-gifts', (gifts) => {
+                if (Array.isArray(gifts) && gifts.length > 0) {
+                    giftsCache = gifts;
+                    renderIfChanged();
+                }
+            });
+            socket.on('reload_overlays', () => {
+                location.reload();
+            });
+        }
+
+        // Cargar regalos en Electron
         if (ipcRenderer) {
             ipcRenderer.send('loadCachedGifts');
             ipcRenderer.on('getAvailableGifts', (event, args) => {
@@ -176,10 +214,10 @@
             loadData();
         });
 
-        // Loop de actualización pasiva sin destruir el DOM innecesariamente
+        // Loop de actualización pasiva de respaldo
         setInterval(() => {
             loadData();
-        }, 3000);
+        }, 5000);
 
         function loadData() {
             if (ipcRenderer) {
@@ -189,16 +227,29 @@
                     renderIfChanged();
                 } catch(e) {}
             } else {
-                // Modo HTTP (OBS)
-                fetch('http://localhost:3011/data')
+                // Modo HTTP / Cloud
+                const endpoint = socketHost ? `${socketHost}/data?token=${encodeURIComponent(streamToken)}` : `/data?token=${encodeURIComponent(streamToken)}`;
+                fetch(endpoint)
                     .then(res => res.json())
                     .then(data => {
+                        if (!data) return;
                         templates = data.templates || [];
                         activeTemplateId = data.activeTemplateId;
                         if(data.gifts && data.gifts.length > 0) giftsCache = data.gifts;
                         renderIfChanged();
                     })
-                    .catch(err => console.error("Error fetching data:", err));
+                    .catch(err => {
+                        // Fallback a localhost si falla cloud
+                        fetch('http://localhost:3011/data')
+                            .then(res => res.json())
+                            .then(data => {
+                                templates = data.templates || [];
+                                activeTemplateId = data.activeTemplateId;
+                                if(data.gifts && data.gifts.length > 0) giftsCache = data.gifts;
+                                renderIfChanged();
+                            })
+                            .catch(() => {});
+                    });
             }
         }
 

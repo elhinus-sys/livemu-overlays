@@ -36,7 +36,21 @@
         </div>
     </div>
     <script>
-        const socket = io();
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamToken = urlParams.get('token') || 'default';
+        const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+        const socket = io(socketHost, {
+            query: { token: streamToken },
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000
+        });
+
+        socket.on('connect', () => {
+            console.log('[Meta Likes] Conectado a sala:', streamToken);
+            socket.emit('join-room', streamToken);
+            socket.emit('get_data', streamToken);
+        });
         let currentLikes = 0;
         let targetLikes = 1000;
         let labelText = "Meta de Likes";
@@ -83,6 +97,15 @@
             // Actualizar progreso en vivo
             if (data.sessionGlobalLikes !== undefined) {
                 currentLikes = data.sessionGlobalLikes;
+            }
+            updateUI();
+        });
+
+        socket.on('like_event', (data) => {
+            if (data && data.totalLikeCount !== undefined) {
+                currentLikes = data.totalLikeCount;
+            } else if (data && data.likeCount) {
+                currentLikes += Number(data.likeCount);
             }
             updateUI();
         });

@@ -164,7 +164,15 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        const socket = io("http://localhost:3011", { reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 1000 });
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamToken = urlParams.get('token') || 'default';
+        const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+        const socket = io(socketHost, {
+            query: { token: streamToken },
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000
+        });
         const chatContainer = document.getElementById('chat-container');
         
         let emotes = {}; 
@@ -297,7 +305,12 @@
         }
         
         // --- CONECTAR EVENTOS ---
-        socket.on('connect', () => socket.emit('request-twitch-status'));
+        socket.on('connect', () => {
+            console.log('[Multichat] Conectado a sala:', streamToken);
+            socket.emit('join-room', streamToken);
+            socket.emit('get_data', streamToken);
+            socket.emit('request-twitch-status');
+        });
         socket.on('twitch-badges', map => twitchBadgesMap = map);
         socket.on('twitch-connection-status', status => {
             if(status.type === 'connected' && status.broadcasterId) fetchChannelEmotes(status.broadcasterId);

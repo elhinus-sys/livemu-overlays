@@ -322,11 +322,21 @@
 
         // Conectar via Socket.IO para recibir eventos en tiempo real
         try {
-            const socket = io("http://localhost:3011", {
+            const urlParams = new URLSearchParams(window.location.search);
+            const streamToken = urlParams.get('token') || 'default';
+            const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+            const socket = io(socketHost, {
+                query: { token: streamToken },
                 reconnection: true,
                 reconnectionAttempts: Infinity,
                 reconnectionDelay: 1000
             });
+
+            socket.on('connect', () => {
+                console.log('[Alertas] Conectado a sala:', streamToken);
+                socket.emit('join-room', streamToken);
+            });
+
             socket.on('media-event', (data) => {
                 // Al ser un evento push, no necesitamos comprobar el ID.
                 // Cada evento recibido es nuevo.
