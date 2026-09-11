@@ -1764,26 +1764,33 @@
                             <div style="display:flex; gap:5px; align-items:center;">
                                 <input type="number" id="ext-base-like" value="1000" placeholder="Likes" style="width:105px;" oninput="autoSaveExtensibleConfig()">
                                 <span style="font-size:0.8rem;">=</span>
-                                <input type="number" id="ext-sec-like" value="60" placeholder="Segundos" style="width:90px;" oninput="autoSaveExtensibleConfig()">
+                                <input type="number" id="ext-sec-like" value="0" placeholder="Segundos" style="width:90px;" oninput="autoSaveExtensibleConfig()">
                                 <span style="font-size:0.8rem; color:#aaa;">seg</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-bottom:8px;">
+                        <div>
+                            <label class="form-label" style="font-size:0.8rem;">Suscripción TikTok</label>
+                            <div style="display:flex; gap:5px; align-items:center;">
+                                <input type="number" id="ext-sec-tiktok-sub" value="0" placeholder="Segundos" style="width:90px;" oninput="autoSaveExtensibleConfig()">
+                                <span style="font-size:0.8rem; color:#aaa;">seg por Sub</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size:0.8rem;">Follows (TikTok)</label>
+                            <div style="display:flex; gap:5px; align-items:center;">
+                                <input type="number" id="ext-sec-follow" value="0" placeholder="Segundos" style="width:90px;" oninput="autoSaveExtensibleConfig()">
+                                <span style="font-size:0.8rem; color:#aaa;">seg por Follow</span>
                             </div>
                         </div>
                     </div>
                     <div class="form-row">
                         <div>
-                            <label class="form-label" style="font-size:0.8rem;">Suscripción TikTok</label>
+                            <label class="form-label" style="font-size:0.8rem;">Compartidas (Shares)</label>
                             <div style="display:flex; gap:5px; align-items:center;">
-                                <input type="number" id="ext-sec-tiktok-sub" value="300" placeholder="Segundos" style="width:100px;" oninput="autoSaveExtensibleConfig()">
-                                <span style="font-size:0.8rem; color:#aaa;">seg por Sub</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="form-label" style="font-size:0.8rem;">Follows / Shares</label>
-                            <div style="display:flex; gap:5px; align-items:center;">
-                                <input type="number" id="ext-sec-follow" value="30" placeholder="Follow" style="width:80px;" oninput="autoSaveExtensibleConfig()">
-                                <span style="font-size:0.8rem;">/</span>
-                                <input type="number" id="ext-sec-share" value="30" placeholder="Share" style="width:80px;" oninput="autoSaveExtensibleConfig()">
-                                <span style="font-size:0.8rem; color:#aaa;">seg</span>
+                                <input type="number" id="ext-sec-share" value="0" placeholder="Segundos" style="width:90px;" oninput="autoSaveExtensibleConfig()">
+                                <span style="font-size:0.8rem; color:#aaa;">seg por Compartir</span>
                             </div>
                         </div>
                     </div>

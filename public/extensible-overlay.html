@@ -598,8 +598,8 @@
             if (!ext) return;
 
             // Sincronizar tiempo del servidor
-            if (ext.time !== undefined) {
-                currentSeconds = Number(ext.time);
+            if (ext.time !== undefined && !isNaN(Number(ext.time))) {
+                currentSeconds = Math.max(0, Number(ext.time));
                 lastSyncTimestamp = performance.now();
             }
 

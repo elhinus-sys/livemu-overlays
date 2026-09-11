@@ -339,6 +339,16 @@
             } catch(e) { console.log("FFZ Channel Error:", e); }
         }
 
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         function addMessage(platform, user, message, badges = [], color = '#ffffff', twitchEmotes = null, gifUrl = null, gifs = []) {
             if (isUserBlocked(user)) return;
             const msgDiv = document.createElement('div');
@@ -366,7 +376,7 @@
             // Detección de GIFs de Twitch / ChatIS
             const gifMatch = message.match(/\[(.*?) GIF by (.*?)\]/i) || message.match(/\[(.*?) GIF\]/i);
 
-            let processedMessage = message;
+            let processedMessage = escapeHtml(message);
             let isGifOnly = false;
 
             // Renderizado de GIFs (igual que ChatIS)
@@ -411,16 +421,28 @@
                     return word;
                 }).join(' ');
 
-                processedMessage = processedMessage.replace(/\[kick_emote:([^\]]+)\]/g, '<span class="emote-container"><img src="$1" class="emote"></span>');
+                // Parsear emotes de Kick: formato nativo [emote:ID:NAME] o [emote:ID]
+                processedMessage = processedMessage.replace(/\[emote:(\d+)(?::([^\]]+))?\]/g, (match, id, name) => {
+                    const emoteName = escapeHtml(name || `emote-${id}`);
+                    return `<span class="emote-container"><img src="https://files.kick.com/emotes/${encodeURIComponent(id)}/fullsize" class="emote" alt="${emoteName}" title="${emoteName}" loading="lazy"></span>`;
+                });
+                processedMessage = processedMessage.replace(/\[kick_emote:([^\]]+)\]/g, (match, url) => {
+                    const cleanUrl = url.trim();
+                    if (/^https?:\/\/[^\s"']+$/i.test(cleanUrl)) {
+                        return `<span class="emote-container"><img src="${escapeHtml(cleanUrl)}" class="emote" loading="lazy"></span>`;
+                    }
+                    return '';
+                });
             }
 
-            const badgesHtml = badges.map(b => `<img src="${b}" class="badge">`).join('');
+            const badgesHtml = badges.filter(b => typeof b === 'string' && /^https?:\/\//i.test(b)).map(b => `<img src="${escapeHtml(b)}" class="badge">`).join('');
+            const safeUser = escapeHtml(user);
 
             msgDiv.innerHTML = `
                 ${platformIcon}
                 <div class="message-body">
                     <span class="badges">${badgesHtml}</span>
-                    <span class="username" style="color: ${color}">${user}</span><span class="colon">:</span> <span class="message-content">${processedMessage}</span>
+                    <span class="username" style="color: ${color}">${safeUser}</span><span class="colon">:</span> <span class="message-content">${processedMessage}</span>
                 </div>
             `;
 
@@ -499,7 +521,8 @@
                     const d = payload.data;
                     const username = d.nickname || d.uniqueId || d.username || (d.sender && d.sender.username) || 'Usuario';
                     const message = d.comment || d.message || d.content || '';
-                    addMessage('kick', username, message, [], '#53fc18');
+                    const userColor = d.color || '#53fc18';
+                    addMessage('kick', username, message, d.badges || [], userColor);
                 }
             });
         }

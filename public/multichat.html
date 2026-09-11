@@ -244,8 +244,18 @@
         document.getElementById('stats-likes').innerText = formatNumberStats(currentLocalLikes);
     });
 
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         // --- MOTOR DE DIBUJADO DE MENSAJES ---
-        function addMessage(platform, user, message, badges = [], color = '#ffffff', twitchEmotes = null, msgId = null, customTTS = null, gifUrl = null, gifs = []) {
+        function addMessage(platform, user, message, badges = [], color = '#ffffff', twitchEmotes = null, msgId = null, customTTS = null, gifUrl = null, gifs = [], isHtml = false) {
             if (chatContainer.innerHTML.includes('Esperando mensajes...')) chatContainer.innerHTML = '';
 
             const isScrolledToBottom = Math.ceil(chatContainer.scrollHeight - chatContainer.clientHeight) <= Math.ceil(chatContainer.scrollTop) + 15;
@@ -275,66 +285,80 @@
             }
 
             // Detección de GIFs de Twitch / ChatIS
-            const gifMatch = message.match(/\[(.*?) GIF by (.*?)\]/i) || message.match(/\[(.*?) GIF\]/i);
+            const gifMatch = typeof message === 'string' ? (message.match(/\[(.*?) GIF by (.*?)\]/i) || message.match(/\[(.*?) GIF\]/i)) : null;
             if (gifMatch && !customTTS) {
                 customTTS = `${user} envió un GIF: ${gifMatch[1] || 'animado'}`;
             }
 
-            let processedMessage = message;
+            let processedMessage = isHtml ? message : escapeHtml(message);
             let isGifOnly = false;
 
-            // Renderizado de GIFs (igual que ChatIS)
-            if (gifs && gifs.length > 0) {
-                const sortedGifs = [...gifs].sort((a, b) => (b.start || 0) - (a.start || 0));
-                for (const gif of sortedGifs) {
-                    if (gif.url) {
-                        const img = `<img class="gif chat-gif" src="${gif.url}" data-id="${gif.id || ''}" loading="lazy" />`;
-                        if (processedMessage.match(/\[(.*?) GIF by (.*?)\]/i)) {
-                            processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/i, img);
-                            isGifOnly = true;
-                        } else if (processedMessage.match(/\[(.*?) GIF\]/i)) {
-                            processedMessage = processedMessage.replace(/\[(.*?) GIF\]/i, img);
-                            isGifOnly = true;
-                        } else if (!isNaN(gif.start) && !isNaN(gif.end) && gif.start >= 0 && gif.end >= gif.start) {
-                            processedMessage = processedMessage.slice(0, gif.start) + img + processedMessage.slice(gif.end + 1);
-                        } else {
-                            processedMessage += ' ' + img;
+            if (!isHtml) {
+                // Renderizado de GIFs (igual que ChatIS)
+                if (gifs && gifs.length > 0) {
+                    const sortedGifs = [...gifs].sort((a, b) => (b.start || 0) - (a.start || 0));
+                    for (const gif of sortedGifs) {
+                        if (gif.url) {
+                            const img = `<img class="gif chat-gif" src="${gif.url}" data-id="${gif.id || ''}" loading="lazy" />`;
+                            if (processedMessage.match(/\[(.*?) GIF by (.*?)\]/i)) {
+                                processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/i, img);
+                                isGifOnly = true;
+                            } else if (processedMessage.match(/\[(.*?) GIF\]/i)) {
+                                processedMessage = processedMessage.replace(/\[(.*?) GIF\]/i, img);
+                                isGifOnly = true;
+                            } else if (!isNaN(gif.start) && !isNaN(gif.end) && gif.start >= 0 && gif.end >= gif.start) {
+                                processedMessage = processedMessage.slice(0, gif.start) + img + processedMessage.slice(gif.end + 1);
+                            } else {
+                                processedMessage += ' ' + img;
+                            }
                         }
                     }
+                } else if (gifUrl) {
+                    const img = `<img class="gif chat-gif" src="${gifUrl}" loading="lazy" />`;
+                    if (processedMessage.match(/\[(.*?) GIF by (.*?)\]/i)) {
+                        processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/gi, img);
+                        isGifOnly = true;
+                    } else if (processedMessage.match(/\[(.*?) GIF\]/i)) {
+                        processedMessage = processedMessage.replace(/\[(.*?) GIF\]/gi, img);
+                        isGifOnly = true;
+                    } else {
+                        processedMessage += ' ' + img;
+                    }
                 }
-            } else if (gifUrl) {
-                const img = `<img class="gif chat-gif" src="${gifUrl}" loading="lazy" />`;
-                if (processedMessage.match(/\[(.*?) GIF by (.*?)\]/i)) {
-                    processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/gi, img);
-                    isGifOnly = true;
-                } else if (processedMessage.match(/\[(.*?) GIF\]/i)) {
-                    processedMessage = processedMessage.replace(/\[(.*?) GIF\]/gi, img);
-                    isGifOnly = true;
-                } else {
-                    processedMessage += ' ' + img;
+
+                // Si no es un mensaje puramente de GIF, parsear emotes de Twitch y 7TV
+                if (!isGifOnly) {
+                    const words = processedMessage.split(' ');
+                    processedMessage = words.map(word => {
+                        if (word.startsWith('<img') || word.includes('chat-gif')) return word;
+                        if (twitchEmoteMap[word]) return `<span class="emote-container"><img src="${twitchEmoteMap[word]}" class="emote" alt="${word}"></span>`;
+                        if (emotes[word]) return `<span class="emote-container"><img src="${emotes[word]}" class="emote" alt="${word}"></span>`;
+                        return word;
+                    }).join(' ');
+
+                    // Parsear emotes de Kick: formato nativo [emote:ID:NAME] o [emote:ID]
+                    processedMessage = processedMessage.replace(/\[emote:(\d+)(?::([^\]]+))?\]/g, (match, id, name) => {
+                        const emoteName = escapeHtml(name || `emote-${id}`);
+                        return `<span class="emote-container"><img src="https://files.kick.com/emotes/${encodeURIComponent(id)}/fullsize" class="emote" alt="${emoteName}" title="${emoteName}" loading="lazy"></span>`;
+                    });
+                    processedMessage = processedMessage.replace(/\[kick_emote:([^\]]+)\]/g, (match, url) => {
+                        const cleanUrl = url.trim();
+                        if (/^https?:\/\/[^\s"']+$/i.test(cleanUrl)) {
+                            return `<span class="emote-container"><img src="${escapeHtml(cleanUrl)}" class="emote" loading="lazy"></span>`;
+                        }
+                        return '';
+                    });
                 }
             }
 
-            // Si no es un mensaje puramente de GIF, parsear emotes de Twitch y 7TV
-            if (!isGifOnly) {
-                const words = processedMessage.split(' ');
-                processedMessage = words.map(word => {
-                    if (word.startsWith('<img') || word.includes('chat-gif')) return word;
-                    if (twitchEmoteMap[word]) return `<span class="emote-container"><img src="${twitchEmoteMap[word]}" class="emote" alt="${word}"></span>`;
-                    if (emotes[word]) return `<span class="emote-container"><img src="${emotes[word]}" class="emote" alt="${word}"></span>`;
-                    return word;
-                }).join(' ');
-
-                processedMessage = processedMessage.replace(/\[kick_emote:([^\]]+)\]/g, '<span class="emote-container"><img src="$1" class="emote"></span>');
-            }
-
-            const badgesHtml = badges.map(b => `<img src="${b}" class="badge">`).join('');
+            const badgesHtml = badges.filter(b => typeof b === 'string' && /^https?:\/\//i.test(b)).map(b => `<img src="${escapeHtml(b)}" class="badge">`).join('');
+            const safeUser = escapeHtml(user);
 
             entry.innerHTML = `
                 <div class="message-body">
                     ${platformIcon}
                     <span class="badges">${badgesHtml}</span>
-                    <span class="username" style="color: ${color}">${user}</span><span class="colon">:</span> <span class="message-content">${processedMessage}</span>
+                    <span class="username" style="color: ${color}">${safeUser}</span><span class="colon">:</span> <span class="message-content">${processedMessage}</span>
                 </div>
             `;
 
@@ -418,7 +442,8 @@
             if(payload.type === 'chat') {
                 const d = payload.data;
                 const username = d.nickname || d.uniqueId || d.username || (d.sender && d.sender.username) || 'Usuario';
-                addMessage('kick', username, d.comment || d.message || d.content || '', [], '#53fc18', null, 'msg-kick-' + Date.now());
+                const userColor = d.color || '#53fc18';
+                addMessage('kick', username, d.comment || d.message || d.content || '', d.badges || [], userColor, null, 'msg-kick-' + Date.now());
             }
         });
 

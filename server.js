@@ -15,8 +15,15 @@ app.use(express.json());
 // In-memory state cache per room (streamer token)
 const rooms = new Map();
 
+function sanitizeToken(token) {
+    if (!token || typeof token !== 'string') return 'default';
+    const cleaned = token.trim();
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(cleaned)) return 'default';
+    return cleaned;
+}
+
 function getRoomState(token) {
-    const key = String(token || 'default').trim();
+    const key = sanitizeToken(token);
     if (!rooms.has(key)) {
         rooms.set(key, {
             widgetData: {},
@@ -26,11 +33,27 @@ function getRoomState(token) {
             extensible: {},
             music: null,
             twitchStatus: null,
-            twitchBadges: null
+            twitchBadges: null,
+            lastActivity: Date.now()
         });
     }
-    return rooms.get(key);
+    const state = rooms.get(key);
+    state.lastActivity = Date.now();
+    return state;
 }
+
+function cleanOldRooms() {
+    const now = Date.now();
+    for (const [key, room] of rooms.entries()) {
+        if (key === 'default') continue;
+        const roomSockets = io.sockets.adapter.rooms.get(`room_${key}`);
+        const hasClients = roomSockets && roomSockets.size > 0;
+        if (!hasClients && (now - (room.lastActivity || 0)) > 6 * 60 * 60 * 1000) {
+            rooms.delete(key);
+        }
+    }
+}
+setInterval(cleanOldRooms, 30 * 60 * 1000);
 
 // Ping / Health check
 app.get('/ping', (req, res) => {
@@ -57,6 +80,7 @@ const overlayRoutes = {
     '/multichat': 'multichat.html',
     '/alerts': 'alerts.html',
     '/overlay-musica': 'overlay-musica.html',
+    '/overlay-canvas': 'overlay-canvas.html',
     '/obs-widget': 'obs-widget.html'
 };
 
@@ -65,8 +89,6 @@ Object.entries(overlayRoutes).forEach(([route, file]) => {
         const filePath = path.join(__dirname, 'public', file);
         if (fs.existsSync(filePath)) {
             let html = fs.readFileSync(filePath, 'utf8');
-            // Reemplazar socket localhost por relativo a Render
-            html = html.replace(/http:\/\/localhost:3011/g, '');
             // Asegurar script de socket.io y puente de token en el <head> para ejecutarse antes que los scripts del overlay
             let headInject = '';
             if (!html.includes('/socket.io/socket.io.js')) {

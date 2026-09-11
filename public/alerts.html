@@ -383,16 +383,29 @@
             element.classList.add('fade-in');
 
             if (data.showUser && data.username) {
+                const escapeHtml = (str) => {
+                    if (!str) return '';
+                    return String(str)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#039;');
+                };
+
                 // AQUÍ ESTÁ EL TRUCO DE LA OLA:
                 // Usamos el 'index' (i) para calcular el retraso.
                 // Cada letra espera 0.1s más que la anterior para empezar a moverse.
-                const wrappedLetters = data.username.split('').map((char, i) => {
+                const safeUsername = escapeHtml(data.username);
+                const wrappedLetters = safeUsername.split('').map((char, i) => {
                     const content = char === ' ' ? '&nbsp;' : char;
                     // Agregamos style="animation-delay: ..." dinámicamente
                     return `<span class="wave-char" style="animation-delay: ${i * 0.1}s">${content}</span>`;
                 }).join('');
 
-                const giftInfo = data.giftName ? ` envió ${data.giftName}` : (data.actionText || '');
+                const safeGiftName = data.giftName ? escapeHtml(data.giftName) : '';
+                const safeActionText = data.actionText ? escapeHtml(data.actionText) : '';
+                const giftInfo = safeGiftName ? ` envió ${safeGiftName}` : safeActionText;
                 
                 textEl.innerHTML = `<span class="username-wrapper">${wrappedLetters}</span> ${giftInfo}`;
                 
