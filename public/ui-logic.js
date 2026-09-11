@@ -1265,19 +1265,10 @@ function getChatWidgetParamsString() {
 }
 
 function getChatWidgetUrl(mode) {
-    const activeMode = mode || currentOverlayHostMode || 'cloud';
     const paramsStr = getChatWidgetParamsString();
-    const effectiveToken = CLOUD_TOKEN || 'hinu';
-    
-    if (activeMode === 'cloud') {
-        let url = `${CLOUD_BASE_URL}/chat-widget.html?token=${effectiveToken}`;
-        if (paramsStr) url += `&${paramsStr}`;
-        return url;
-    } else {
-        let url = `http://localhost:3011/chat-widget.html`;
-        if (paramsStr) url += `?${paramsStr}`;
-        return url;
-    }
+    let url = `${CLOUD_BASE_URL}/chat-widget.html`;
+    if (paramsStr) url += `?${paramsStr}`;
+    return url;
 }
 
 let currentBlockedBotsList = [];
@@ -2014,15 +2005,7 @@ function setOverlayHostMode(mode) {
             input.value = getChatWidgetUrl(mode);
             return;
         }
-        if (mode === 'cloud') {
-            input.value = `${CLOUD_BASE_URL}/${path}?token=${effectiveToken}`;
-        } else {
-            if (path.includes('overlay-musica')) {
-                input.value = `http://localhost:3010/${path}`;
-            } else {
-                input.value = `http://localhost:3011/${path}`;
-            }
-        }
+        input.value = `${CLOUD_BASE_URL}/${path}`;
     });
     updateChatWidgetLink();
 }
