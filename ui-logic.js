@@ -1363,10 +1363,8 @@ function updateChatWidgetLink() {
     if (linkBox) linkBox.value = url;
     const modalLinkBox = document.getElementById('chat-cfg-generated-link');
     if (modalLinkBox) modalLinkBox.value = url;
-    const modalModeLabel = document.getElementById('chat-modal-mode-label');
-    if (modalModeLabel) modalModeLabel.innerText = 'Cloudflare Pages';
     const modalBadge = document.getElementById('chat-modal-badge-host');
-    if (modalBadge) modalBadge.innerText = 'Cloudflare Pages (Ilimitado)';
+    if (modalBadge) modalBadge.innerText = 'OBS / TikTok Live Studio';
 }
 
 function loadChatWidgetConfig() {
