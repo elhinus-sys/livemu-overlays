@@ -1358,16 +1358,15 @@ function copyModalChatUrl(btn) {
 }
 
 function updateChatWidgetLink() {
-    const activeMode = currentOverlayHostMode || 'cloud';
-    const url = getChatWidgetUrl(activeMode);
+    const url = getChatWidgetUrl('cloud');
     const linkBox = document.getElementById('chat-widget-link');
     if (linkBox) linkBox.value = url;
     const modalLinkBox = document.getElementById('chat-cfg-generated-link');
     if (modalLinkBox) modalLinkBox.value = url;
     const modalModeLabel = document.getElementById('chat-modal-mode-label');
-    if (modalModeLabel) modalModeLabel.innerText = activeMode === 'cloud' ? 'Render Cloud' : 'Local (PC)';
+    if (modalModeLabel) modalModeLabel.innerText = 'Cloudflare Pages';
     const modalBadge = document.getElementById('chat-modal-badge-host');
-    if (modalBadge) modalBadge.innerText = activeMode === 'cloud' ? 'Modo Render Cloud' : 'Modo Local (PC)';
+    if (modalBadge) modalBadge.innerText = 'Cloudflare Pages (Ilimitado)';
 }
 
 function loadChatWidgetConfig() {

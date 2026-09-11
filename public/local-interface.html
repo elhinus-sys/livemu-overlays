@@ -800,49 +800,25 @@
                         <i class="fa-solid fa-layer-group" style="font-size: 2rem; color: #bb86fc;"></i>
                         <h2 style="margin: 0; color: #bb86fc; font-size: 1.8rem;">Overlays</h2>
                     </div>
-                    <!-- SELECTOR LOCAL vs RENDER CLOUD -->
+                    <!-- INDICADOR OFICIAL CLOUDFLARE -->
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <span id="cloud-status-badge" style="font-size: 0.8rem; padding: 4px 10px; border-radius: 20px; border: 1px solid #00d2d3; color: #00d2d3; font-weight: bold; display: none;">En línea en Render</span>
-                        <div style="display: flex; background: #1a1a1a; padding: 3px; border-radius: 6px; border: 1px solid #333; gap: 4px;">
-                            <button id="btn-host-cloud" class="btn btn-blue btn-sm" onclick="setOverlayHostMode('cloud')" style="background: #00d2d3; color: #000; font-weight: bold;">
-                                <i class="fa-solid fa-cloud"></i> Render Cloud
-                            </button>
-                            <button id="btn-host-local" class="btn btn-outline btn-sm" onclick="setOverlayHostMode('local')">
-                                <i class="fa-solid fa-laptop"></i> Local (PC)
-                            </button>
-                        </div>
+                        <span style="background: rgba(243, 128, 32, 0.15); border: 1px solid #f38020; color: #f38020; font-size: 0.82rem; padding: 5px 14px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-bolt" style="color: #ffd700;"></i> Cloudflare CDN (Ilimitado)
+                        </span>
                     </div>
                 </div>
 
-                <!-- CONTENEDOR TOKEN CLOUD -->
-                <div id="cloud-token-container" style="display: none; flex-direction: column; gap: 10px; background: rgba(0, 210, 211, 0.08); border: 1px solid rgba(0, 210, 211, 0.3); border-radius: 8px; padding: 12px 15px; margin-bottom: 20px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <i class="fa-solid fa-key" style="color: #00d2d3;"></i>
-                            <span style="font-size: 0.85rem; color: #ccc;">Tu Sala Privada Cloud:</span>
-                            <span id="cloud-token-display" style="font-family: monospace; font-weight: bold; color: #00d2d3; background: rgba(0,0,0,0.4); padding: 2px 8px; border-radius: 4px;">cargando...</span>
-                        </div>
-                        <button class="btn btn-outline btn-sm" onclick="regenerateCloudToken()" title="Generar nuevo token si deseas cambiar de sala">
-                            <i class="fa-solid fa-arrows-rotate"></i> Regenerar Token
-                        </button>
+                <!-- CONTENEDOR DOMINIO OFICIAL CLOUDFLARE -->
+                <div id="cloud-token-container" style="display: flex; align-items: center; justify-content: space-between; background: rgba(243, 128, 32, 0.08); border: 1px solid rgba(243, 128, 32, 0.35); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-globe" style="color: #f38020; font-size: 1.1rem;"></i>
+                        <span style="font-size: 0.85rem; color: #ccc;">Servidor Web Oficial:</span>
+                        <a href="https://livemu.pages.dev" target="_blank" style="font-family: monospace; font-weight: bold; color: #f38020; background: rgba(0,0,0,0.5); padding: 3px 10px; border-radius: 4px; text-decoration: none; border: 1px solid rgba(243, 128, 32, 0.3);">https://livemu.pages.dev</a>
+                        <span style="font-size: 0.78rem; color: #aaa;">(Sala: <span id="cloud-token-display" style="color: #00d2d3; font-weight: bold;">cargando...</span>)</span>
                     </div>
-                    <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; gap: 10px; flex-wrap: wrap;">
-                        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #ccc;">
-                            <i class="fa-solid fa-server" style="color: #f38020;"></i> Servidor Web:
-                            <div style="display: flex; gap: 4px;">
-                                <button type="button" id="btn-provider-cf" class="btn btn-sm btn-outline" onclick="selectCloudProvider('cloudflare')" style="font-size: 0.75rem; padding: 3px 9px;">
-                                    <i class="fa-solid fa-bolt" style="color: #ffd700;"></i> Cloudflare Pages (Ilimitado)
-                                </button>
-                                <button type="button" id="btn-provider-render" class="btn btn-sm btn-outline" onclick="selectCloudProvider('render')" style="font-size: 0.75rem; padding: 3px 9px;">
-                                    Render Cloud
-                                </button>
-                            </div>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px; flex-grow: 1; max-width: 380px;">
-                            <span style="font-size: 0.75rem; color: #888;">URL:</span>
-                            <input type="text" id="cloud-base-url-input" style="font-size: 0.8rem; padding: 3px 8px; background: #111; border: 1px solid #444; border-radius: 4px; color: #00d2d3; width: 100%;" onchange="setCloudBaseUrl(this.value)" placeholder="https://livemu-overlays.pages.dev">
-                        </div>
-                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="regenerateCloudToken()" title="Generar nuevo token si deseas cambiar de sala">
+                        <i class="fa-solid fa-arrows-rotate"></i> Regenerar Sala
+                    </button>
                 </div>
                 
                 <p style="color: #aaa; margin-bottom: 30px; font-size: 1.1rem;">
@@ -2042,8 +2018,8 @@
                 <!-- ENLACE GENERADO CON BOTÓN COPIAR -->
                 <div style="background: rgba(0, 210, 211, 0.05); border: 1px solid rgba(0, 210, 211, 0.3); border-radius: 6px; padding: 10px 12px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <label class="form-label" style="font-size:0.8rem; margin:0; color: #00d2d3; font-weight: bold;">
-                            <i class="fa-solid fa-link"></i> Enlace Generado para OBS / TikTok Studio (<span id="chat-modal-mode-label">Render Cloud</span>):
+                        <label class="form-label" style="font-size:0.8rem; margin:0; color: #f38020; font-weight: bold;">
+                            <i class="fa-solid fa-link"></i> Enlace Generado para OBS / TikTok Studio (<span id="chat-modal-mode-label">Cloudflare Pages</span>):
                         </label>
                         <span style="font-size:0.72rem; color:#aaa;">Usa este enlace en tu Fuente de Navegador</span>
                     </div>
