@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LiveMu - Ahora Suena</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="./token-bridge.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -48,7 +50,6 @@
         @keyframes marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         .track-item { border-left: 2px solid transparent; transition: all 0.2s ease; }
     </style>
-    <script src="./token-bridge.js"></script>
 </head>
 <body class="p-6">
 
@@ -71,7 +72,6 @@
         </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         const widgetContainer = document.getElementById('widget-container');
         const widgetTitle = document.getElementById('widget-title');
@@ -80,30 +80,39 @@
         const upNextSection = document.getElementById('up-next-section');
         const upNextList = document.getElementById('widget-up-next-list');
         
+        // Detectar si se está ejecutando dentro de OBS Studio Browser Source
+        const isObs = !!(window.obsStudio || (window.navigator && window.navigator.userAgent && window.navigator.userAgent.includes('OBS')));
+
         function updateWidget(data) {
             console.log('[Música] updateWidget recibido:', data);
             if (!data) {
-                widgetContainer.classList.add('hidden-widget');
-                return;
-            }
-
-            const song = data.currentSong || (data.title ? data : null);
-            if (!song || !song.title) {
-                // En OBS se mantiene oculto si no hay música. En navegador web muestra aviso de espera.
-                const isObs = window.obsStudio || (window.navigator && window.navigator.userAgent.includes('OBS'));
                 if (isObs) {
                     widgetContainer.classList.add('hidden-widget');
                 } else {
                     widgetContainer.classList.remove('hidden-widget');
-                    widgetTitle.textContent = 'Esperando música de LiveMu...';
-                    widgetArtist.textContent = 'Pon una canción en la app para verla aquí';
+                    widgetTitle.textContent = 'Sin música en reproducción';
+                    widgetArtist.textContent = 'Reproduce una canción en LiveMu';
+                    upNextSection.classList.add('hidden');
+                }
+                return;
+            }
+
+            const current = data.currentSong || (data.title ? data : null);
+            if (!current || (!current.title && !current.song)) {
+                if (isObs) {
+                    widgetContainer.classList.add('hidden-widget');
+                } else {
+                    widgetContainer.classList.remove('hidden-widget');
+                    widgetTitle.textContent = 'Sin música en reproducción';
+                    widgetArtist.textContent = 'Reproduce una canción en LiveMu';
+                    upNextSection.classList.add('hidden');
                 }
                 return;
             }
 
             widgetContainer.classList.remove('hidden-widget');
-            const title = song.title || '';
-            const author = song.author || '';
+            const title = current.title || current.song || '';
+            const author = current.author || current.artist || '';
             widgetArtist.textContent = author;
             widgetTitle.textContent = title;
 
@@ -118,17 +127,24 @@
                 }
             }, 50);
 
-            const upNext = data.queue || [];
+            const upNext = data.queue || data.upNext || [];
             if (upNext.length > 0) {
                 upNextList.innerHTML = upNext.slice(0, 2).map(song => `
                     <li class="track-item flex items-center text-sm">
                         <svg class="w-3 h-3 text-violet-400 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.28-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-                        <span class="text-gray-200 truncate font-medium">${song.title}</span>
+                        <span class="text-gray-200 truncate font-medium">${song.title || song.song}</span>
                     </li>`).join('');
                 upNextSection.classList.remove('hidden');
             } else {
                 upNextSection.classList.add('hidden');
             }
+        }
+
+        // Si se abre en navegador web regular (para pruebas directas), mostrar estado inicial visible
+        if (!isObs) {
+            widgetContainer.classList.remove('hidden-widget');
+            widgetTitle.textContent = 'Conectando con LiveMu...';
+            widgetArtist.textContent = 'Asegúrate de que LiveMu esté abierto';
         }
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -141,13 +157,25 @@
         });
 
         socket.on('connect', () => {
-            console.log('[Música] Conectado a Render en sala:', streamToken);
-            socket.emit('join-room', streamToken);
+            console.log('[Música] Conectado exitosamente');
+            if (!isObs) {
+                widgetTitle.textContent = 'Esperando música...';
+                widgetArtist.textContent = 'Pon una canción en la app para verla aquí';
+            }
             socket.emit('get_music', streamToken);
         });
 
         socket.on('music-update', updateWidget);
-        socket.on('disconnect', () => updateWidget(null));
+        socket.on('disconnect', () => {
+            console.log('[Música] Desconectado');
+            if (!isObs) {
+                widgetContainer.classList.remove('hidden-widget');
+                widgetTitle.textContent = 'Desconectado';
+                widgetArtist.textContent = 'Reconectando con LiveMu...';
+            } else {
+                updateWidget(null);
+            }
+        });
     </script>
 </body>
 </html>
