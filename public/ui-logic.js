@@ -1832,13 +1832,75 @@ function deleteCanvasProfile() {
 }
 window.addEventListener('resize', () => { if (typeof updateEditorIframeScale === 'function') updateEditorIframeScale(); });
 
-// --- GESTIÓN DE SERVIDOR DE OVERLAYS (LOCAL vs RENDER CLOUD) ---
+// --- GESTIÓN DE SERVIDOR DE OVERLAYS (LOCAL vs CLOUD: CLOUDFLARE PAGES / RENDER) ---
 let currentOverlayHostMode = localStorage.getItem('s4e_overlay_host_mode') || 'cloud';
-const CLOUD_BASE_URL = 'https://livemu-overlays.onrender.com';
+let CLOUD_BASE_URL = localStorage.getItem('s4e_cloud_base_url') || 'https://livemu-overlays.pages.dev';
 let CLOUD_TOKEN = localStorage.getItem('s4e_cloud_token') || '';
+
+function selectCloudProvider(provider) {
+    if (provider === 'cloudflare') {
+        setCloudBaseUrl('https://livemu-overlays.pages.dev');
+    } else if (provider === 'render') {
+        setCloudBaseUrl('https://livemu-overlays.onrender.com');
+    }
+    updateCloudProviderUI();
+}
+
+function setCloudBaseUrl(url) {
+    if (!url) return;
+    let clean = url.trim().replace(/\/+$/, '');
+    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+        clean = 'https://' + clean;
+    }
+    CLOUD_BASE_URL = clean;
+    localStorage.setItem('s4e_cloud_base_url', clean);
+    updateCloudProviderUI();
+    setOverlayHostMode(currentOverlayHostMode);
+}
+
+function updateCloudProviderUI() {
+    const input = document.getElementById('cloud-base-url-input');
+    if (input) input.value = CLOUD_BASE_URL;
+    const btnCf = document.getElementById('btn-provider-cf');
+    const btnRender = document.getElementById('btn-provider-render');
+    const badge = document.getElementById('cloud-status-badge');
+    const isCf = CLOUD_BASE_URL.includes('pages.dev') || CLOUD_BASE_URL.includes('cloudflare');
+    if (btnCf) {
+        if (isCf) {
+            btnCf.style.background = '#f38020';
+            btnCf.style.color = '#fff';
+            btnCf.style.borderColor = '#f38020';
+            btnCf.style.fontWeight = 'bold';
+        } else {
+            btnCf.style.background = '';
+            btnCf.style.color = '#aaa';
+            btnCf.style.borderColor = '';
+            btnCf.style.fontWeight = 'normal';
+        }
+    }
+    if (btnRender) {
+        if (!isCf) {
+            btnRender.style.background = '#00d2d3';
+            btnRender.style.color = '#000';
+            btnRender.style.borderColor = '#00d2d3';
+            btnRender.style.fontWeight = 'bold';
+        } else {
+            btnRender.style.background = '';
+            btnRender.style.color = '#aaa';
+            btnRender.style.borderColor = '';
+            btnRender.style.fontWeight = 'normal';
+        }
+    }
+    if (badge && currentOverlayHostMode === 'cloud') {
+        badge.innerText = isCf ? 'Cloudflare (Ilimitado)' : 'En línea en Render';
+        badge.style.color = isCf ? '#f38020' : '#00d2d3';
+        badge.style.borderColor = isCf ? '#f38020' : '#00d2d3';
+    }
+}
 
 // Cargar token único persistido desde el proceso principal (Electron)
 function loadCloudConfig() {
+    updateCloudProviderUI();
     if (window.require) {
         try {
             const { ipcRenderer } = window.require('electron');
@@ -1862,6 +1924,7 @@ function updateCloudTokenUI() {
     if (tokenDisplay) {
         tokenDisplay.innerText = CLOUD_TOKEN || 'cargando...';
     }
+    updateCloudProviderUI();
 }
 
 async function regenerateCloudToken() {
