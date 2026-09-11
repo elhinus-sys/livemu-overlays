@@ -1834,12 +1834,12 @@ window.addEventListener('resize', () => { if (typeof updateEditorIframeScale ===
 
 // --- GESTIÓN DE SERVIDOR DE OVERLAYS (LOCAL vs CLOUD: CLOUDFLARE PAGES / RENDER) ---
 let currentOverlayHostMode = localStorage.getItem('s4e_overlay_host_mode') || 'cloud';
-let CLOUD_BASE_URL = localStorage.getItem('s4e_cloud_base_url') || 'https://livemu-overlays.pages.dev';
+let CLOUD_BASE_URL = localStorage.getItem('s4e_cloud_base_url') || 'https://livemu.pages.dev';
 let CLOUD_TOKEN = localStorage.getItem('s4e_cloud_token') || '';
 
 function selectCloudProvider(provider) {
     if (provider === 'cloudflare') {
-        setCloudBaseUrl('https://livemu-overlays.pages.dev');
+        setCloudBaseUrl('https://livemu.pages.dev');
     } else if (provider === 'render') {
         setCloudBaseUrl('https://livemu-overlays.onrender.com');
     }
