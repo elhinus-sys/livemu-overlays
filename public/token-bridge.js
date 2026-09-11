@@ -89,8 +89,10 @@
                 transports: ['websocket', 'polling']
             });
 
-            // Socket de respaldo hacia Render (empieza apagado para no gastar ancho de banda)
-            const cloudSocket = origIo(cloudHostUrl, {
+            const isStaticHost = cloudHostUrl.includes('pages.dev') || cloudHostUrl.includes('github.io') || cloudHostUrl.includes('cloudflare');
+
+            // Socket de respaldo hacia la nube (solo si no es un host 100% estático como Cloudflare Pages)
+            const cloudSocket = isStaticHost ? null : origIo(cloudHostUrl, {
                 query: { token: streamToken },
                 reconnection: true,
                 reconnectionAttempts: Infinity,
@@ -132,27 +134,29 @@
                     }
                 });
 
-                // Escuchar en el socket cloud (solo procesar si local no está conectado para no duplicar eventos)
-                cloudSocket.on(event, (...args) => {
-                    if (isLocalConnected) return; // Prioridad local: silenciar eventos de la nube
-                    const listeners = eventListeners.get(event);
-                    if (listeners) {
-                        listeners.forEach(cb => {
-                            try { cb.apply(proxySocket, args); } catch (e) { console.error(e); }
-                        });
-                    }
-                });
+                // Escuchar en el socket cloud si existe (solo procesar si local no está conectado para no duplicar eventos)
+                if (cloudSocket) {
+                    cloudSocket.on(event, (...args) => {
+                        if (isLocalConnected) return; // Prioridad local: silenciar eventos de la nube
+                        const listeners = eventListeners.get(event);
+                        if (listeners) {
+                            listeners.forEach(cb => {
+                                try { cb.apply(proxySocket, args); } catch (e) { console.error(e); }
+                            });
+                        }
+                    });
+                }
             }
 
             // Gestión de conexión Local
             localSocket.on('connect', () => {
                 isLocalConnected = true;
                 globalIsLocalConnected = true;
-                console.log('%c[LiveMu Bridge] ✅ Conectado a la App en tu PC (http://localhost:3011) - Ancho de banda de Render: 0 MB', 'color: #00d2d3; font-weight: bold; font-size: 1.1em;');
+                console.log('%c[LiveMu Bridge] ✅ Conectado a la App en tu PC (http://localhost:3011) - Ancho de banda de Cloudflare/Render: 0 MB', 'color: #00d2d3; font-weight: bold; font-size: 1.1em;');
 
-                // Desconectar socket de Render de inmediato para ahorrar tráfico
+                // Desconectar socket de Render si estaba conectado
                 if (cloudSocket && cloudSocket.connected) {
-                    console.log('[LiveMu Bridge] 🔌 Desconectando socket de Render Cloud para ahorrar cuota mensual.');
+                    console.log('[LiveMu Bridge] 🔌 Desconectando socket de Cloud para ahorrar cuota.');
                     cloudSocket.disconnect();
                 }
 
@@ -166,35 +170,37 @@
                 console.log('[LiveMu Bridge] Desconectado de App Local:', reason);
                 dispatchEvent('disconnect', reason);
 
-                // Si la app local se cierra, activar cloud como respaldo
+                // Si la app local se cierra y hay socket cloud configurado, activar cloud como respaldo
                 if (cloudSocket && !cloudSocket.connected) {
-                    console.log('[LiveMu Bridge] Reactivando Render Cloud como respaldo...');
+                    console.log('[LiveMu Bridge] Reactivando Cloud como respaldo...');
                     cloudSocket.connect();
                 }
             });
 
             // Gestión de conexión Cloud (Respaldo)
-            cloudSocket.on('connect', () => {
-                console.log(`[LiveMu Bridge] ☁️ Conectado a Render Cloud (Sala: ${streamToken}) [Modo Respaldo]`);
-                syncRoom(cloudSocket);
-                if (!isLocalConnected) {
-                    dispatchEvent('connect');
-                }
-            });
+            if (cloudSocket) {
+                cloudSocket.on('connect', () => {
+                    console.log(`[LiveMu Bridge] ☁️ Conectado a Cloud (Sala: ${streamToken}) [Modo Respaldo]`);
+                    syncRoom(cloudSocket);
+                    if (!isLocalConnected) {
+                        dispatchEvent('connect');
+                    }
+                });
 
-            cloudSocket.on('disconnect', (reason) => {
-                if (!isLocalConnected) {
-                    dispatchEvent('disconnect', reason);
-                }
-            });
+                cloudSocket.on('disconnect', (reason) => {
+                    if (!isLocalConnected) {
+                        dispatchEvent('disconnect', reason);
+                    }
+                });
 
-            // Si tras 2.5 segundos la app local aún no ha respondido (ej. se abrió OBS antes que la app), conectar a Render como respaldo temporal
-            setTimeout(() => {
-                if (!isLocalConnected && cloudSocket && !cloudSocket.connected) {
-                    console.log('[LiveMu Bridge] OBS/TikTok abierto antes que la app. Activando Render Cloud en espera de que inicie la app...');
-                    cloudSocket.connect();
-                }
-            }, 2500);
+                // Si tras 2.5 segundos la app local aún no ha respondido (ej. se abrió OBS antes que la app), conectar a Cloud como respaldo temporal
+                setTimeout(() => {
+                    if (!isLocalConnected && cloudSocket && !cloudSocket.connected) {
+                        console.log('[LiveMu Bridge] OBS/TikTok abierto antes que la app. Activando Cloud en espera de que inicie la app...');
+                        cloudSocket.connect();
+                    }
+                }, 2500);
+            }
 
             // Objeto Proxy que los widgets utilizarán de forma transparente
             const proxySocket = {

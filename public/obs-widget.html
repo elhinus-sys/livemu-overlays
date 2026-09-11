@@ -131,6 +131,7 @@
         .icon-green { color: #2ecc71; }
         .icon-gold { color: #ffd700; }
     </style>
+    <script src="./token-bridge.js"></script>
 </head>
 <body>
     <div class="drag-region" title="Arrastra desde aquí"></div>
@@ -138,7 +139,7 @@
         <!-- Los items se generarán aquí -->
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         let ipcRenderer;
         try {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Likes Goal Overlay</title>
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { margin: 0; padding: 20px; font-family: 'Segoe UI', sans-serif; background: transparent; overflow: hidden; }
@@ -16,6 +16,7 @@
         @keyframes beat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
         .goal-text { font-family: 'Consolas', monospace; position: absolute; right: 20px; font-size: 1.2rem; }
     </style>
+    <script src="./token-bridge.js"></script>
 </head>
 <body>
     <div class="drag-region"></div>
