@@ -806,75 +806,13 @@
                 <span id="cloud-token-container" style="display: none;"></span>
                 <span id="cloud-status-badge" style="display: none;"></span>
                 
-                <p style="color: #aaa; margin-bottom: 30px; font-size: 1.1rem;">
-                    Combina todos tus overlays (Alertas, Chat, Metas, Enlaces Web) en <strong>un solo archivo para OBS</strong>. Acomódalos visualmente sin tener que mover múltiples fuentes en tu software de streaming.
+                <p style="color: #aaa; margin-bottom: 25px; font-size: 1.05rem;">
+                    Copia los enlaces de tus overlays y agrégalos como <strong>Fuente de Navegador</strong> (Browser Source) directamente en <strong>OBS Studio</strong> o <strong>TikTok LIVE Studio</strong>.
                 </p>
 
-                <!-- EDITOR EMBEBIDO -->
-                <div class="embedded-editor-container" style="flex-shrink: 0; margin-top: 30px; border: 1px solid #555; border-radius: 8px; overflow: hidden; background: #000; display: flex; flex-direction: column; box-shadow: 0 8px 20px rgba(0,0,0,0.5); width: 100%;">
-                    <div style="background: #1e1e1e; padding: 10px 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="color: #ffd700; font-weight: bold; display: flex; align-items: center; gap: 10px;"><i class="fa-solid fa-pen-ruler"></i> Editor Maestro de Overlays</span>
-                            <!-- CONTROLES DE PERFIL -->
-                            <div style="display: flex; align-items: center; gap: 5px; margin-left: 15px; border-left: 1px solid #444; padding-left: 15px;">
-                                <select id="canvas-profile-select" onchange="changeCanvasProfile()" style="background: #2b2b2b; color: white; border: 1px solid #444; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; width: 150px; outline: none;"></select>
-                                <button class="btn btn-outline btn-sm" onclick="createCanvasProfile()" title="Nuevo Perfil"><i class="fa-solid fa-plus"></i></button>
-                                <button class="btn btn-outline btn-sm" onclick="renameCanvasProfile()" title="Renombrar Perfil"><i class="fa-solid fa-pen"></i></button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteCanvasProfile()" title="Eliminar Perfil"><i class="fa-solid fa-trash"></i></button>
-                            </div>
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <!-- [NUEVO] Botón para desactivar el editor y liberar RAM -->
-                            <button id="btn-deactivate-editor" class="btn btn-danger btn-sm" onclick="deactivateCanvasEditor()" style="display: none;"><i class="fa-solid fa-power-off"></i> Desactivar Editor</button>
-                            <button id="btn-aspect-9-16" class="btn btn-outline btn-sm" onclick="setEditorAspect('9/16')" title="Vertical (TikTok)"><i class="fa-solid fa-mobile-screen"></i> 9:16</button>
-                            <button id="btn-aspect-16-9" class="btn btn-outline btn-sm" onclick="setEditorAspect('16/9')" title="Horizontal (Twitch/YouTube)"><i class="fa-solid fa-desktop"></i> 16:9</button>
-                            <button class="btn btn-outline btn-sm" onclick="const wv = document.getElementById('embedded-canvas-editor'); if(wv) wv.src = wv.src;"><i class="fa-solid fa-rotate-right"></i> Recargar</button>
-                        </div>
-                    </div>
-                    <!-- NUEVA BARRA DE HERRAMIENTAS EXTERNA -->
-                    <div style="padding: 10px 15px; background: #111; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #333;">
-                        <select id="external-widget-select" style="flex-grow: 1; padding: 8px; background: #222; color: white; border: 1px solid #444; border-radius: 4px; outline: none;">
-                            <option value="/alerts.html">Alertas</option>
-                            <option value="/chat-widget.html">Chat en Vivo</option>
-                            <option value="/top-likes-overlay.html">Top Likes</option>
-                            <option value="/likes-goal-overlay.html">Meta de Likes</option>
-                            <option value="/gift-goal-overlay.html">Meta de Regalos</option>
-                            <option value="/extensible-overlay.html">Extensible Timer</option>
-                            <option value="/gift-overlay.html">Interacciones / Regalos</option>
-                            <option value="/overlay-musica.html">Música (Ahora Suena)</option>
-                                                        <option value="custom" style="color: #ffd700; font-weight: bold;">+ Añadir URL Personalizada...</option>
-                        </select>
-                        <button class="btn btn-blue btn-sm" onclick="sendAddWidget()"><i class="fa-solid fa-plus"></i> Añadir Overlay</button>
-                        <button class="btn btn-green btn-sm" onclick="sendSaveLayout()"><i class="fa-solid fa-save"></i> Guardar Escena</button>
-                        <button class="btn btn-danger btn-sm" onclick="sendClearCanvas()"><i class="fa-solid fa-trash"></i> Borrar Todo</button>
-                    </div>
-                    <div id="editor-container" style="display: flex; justify-content: center; align-items: center; padding: 20px; background: #111; overflow: hidden; flex-grow: 1; height: 60vh; min-height: 400px; position: relative;">
-                        <!-- [OPTIMIZACIÓN RAM] El iframe del editor se reemplaza por un placeholder. Se cargará bajo demanda. -->
-                        <div id="editor-placeholder" style="text-align: center; color: #888;">
-                            <i class="fa-solid fa-pen-ruler" style="font-size: 4rem; margin-bottom: 20px; color: #444;"></i>
-                            <h3 style="color: #ccc; margin-bottom: 10px;">El editor está desactivado para ahorrar RAM</h3>
-                            <button class="btn btn-green btn-lg" onclick="activateCanvasEditor()"><i class="fa-solid fa-power-off"></i> Activar Editor Visual</button>
-                        </div>
-                        <iframe id="embedded-canvas-editor" src="about:blank" style="border: 1px dashed #444; background: transparent; transform-origin: center; position: absolute; box-shadow: 0 0 15px rgba(0,0,0,0.8); display: none;"></iframe>
-                    </div>
-                </div>
-
-                <!-- INSTRUCCIONES -->
-                <div style="background: rgba(187, 134, 252, 0.1); border-left: 4px solid #bb86fc; padding: 20px; border-radius: 0 8px 8px 0; margin-top: 20px;">
-                    <h4 style="margin-top: 0; color: #bb86fc; font-size: 1.1rem; margin-bottom: 15px;">
-                        <i class="fa-solid fa-lightbulb"></i> ¿Cómo usar este nuevo sistema?
-                    </h4>
-                    <ol style="color: #ddd; margin-bottom: 0; font-size: 14.5px; line-height: 1.8; padding-left: 20px;">
-                        <li>La ventana de captura <strong>se abre sola</strong> al iniciar la app. Mantenla de fondo y captúrala en OBS usando <strong>Captura de Ventana</strong> (permite transparencia).</li>
-                        <li>Usa el <strong>Editor Visual</strong> de arriba para añadir tus overlays: Chat, Alertas, Música, Metas e URLs personalizadas.</li>
-                        <li>Arrastra los cuadros y ajústalos. <strong>Mantén presionada la tecla SHIFT</strong> al arrastrar las esquinas para hacer ZOOM / escalar su contenido.</li>
-                        <li>Una vez listo, dale a <strong>"Guardar Escena"</strong> dentro del editor.</li>
-                    </ol>
-                </div>
-
                 <!-- GALERIA DE WIDGETS -->
-                <div class="section-header" style="border-top: 1px solid #333; padding-top: 20px;">
-                    <h4><i class="fa-solid fa-list-ul"></i> Catálogo de Overlays Individuales</h4>
+                <div class="section-header" style="border-top: 1px solid #333; padding-top: 15px;">
+                    <h4><i class="fa-solid fa-list-ul"></i> Catálogo de Overlays para tu Transmisión</h4>
                 </div>
 
                 <div class="widgets-grid">

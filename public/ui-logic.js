@@ -30,17 +30,11 @@ function switchView(viewName) {
     const alertsFrame = document.getElementById('preview-alerts');
     if (alertsFrame) { if (viewName === 'media') { if (alertsFrame.getAttribute('src') !== 'http://localhost:3011/alerts.html?preview=true') alertsFrame.src = 'http://localhost:3011/alerts.html?preview=true'; } else { alertsFrame.src = 'about:blank'; } }
 
-    // [OPTIMIZACIÓN] Carga escalonada (Staggered Loading) de los widgets para evitar picos de CPU
+    // [OPTIMIZACIÓN] Carga escalonada de vistas previas
     if (viewName === 'canvas') {
-        if (window.ipcRenderer) {
-            window.ipcRenderer.send('local-open-canvas-window');
-        }
-        // [NUEVO FIX] Si es el arranque de la app, esperamos 3 segundos antes de cargar las vistas previas.
-        // Esto asegura que la ventana principal y la ventana de OBS se creen primero sin ahogar el CPU.
         if (typeof window.initialCanvasLoadDone === 'undefined') window.initialCanvasLoadDone = false;
-        let delay = window.initialCanvasLoadDone ? 0 : 3000;
-        // [OPTIMIZACIÓN RAM] Ya no cargamos el editor al entrar a la vista. Se carga bajo demanda.
-        window.initialCanvasLoadDone = true; // Marcamos como hecho para que el delay solo aplique la primera vez.
+        let delay = window.initialCanvasLoadDone ? 0 : 2000;
+        window.initialCanvasLoadDone = true;
 
         // [FIX] 2. Cargar el resto de widgets de vista previa mucho más lento
         const loadFrame = (id, url) => {
