@@ -424,12 +424,12 @@
                 // Parsear emotes de Kick: formato nativo [emote:ID:NAME] o [emote:ID]
                 processedMessage = processedMessage.replace(/\[emote:(\d+)(?::([^\]]+))?\]/g, (match, id, name) => {
                     const emoteName = escapeHtml(name || `emote-${id}`);
-                    return `<span class="emote-container"><img src="https://files.kick.com/emotes/${encodeURIComponent(id)}/fullsize" class="emote" alt="${emoteName}" title="${emoteName}" loading="lazy"></span>`;
+                    return `<span class="emote-container"><img src="https://files.kick.com/emotes/${encodeURIComponent(id)}/fullsize" class="emote" alt="${emoteName}" title="${emoteName}"></span>`;
                 });
                 processedMessage = processedMessage.replace(/\[kick_emote:([^\]]+)\]/g, (match, url) => {
                     const cleanUrl = url.trim();
                     if (/^https?:\/\/[^\s"']+$/i.test(cleanUrl)) {
-                        return `<span class="emote-container"><img src="${escapeHtml(cleanUrl)}" class="emote" loading="lazy"></span>`;
+                        return `<span class="emote-container"><img src="${escapeHtml(cleanUrl)}" class="emote"></span>`;
                     }
                     return '';
                 });
