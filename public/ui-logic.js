@@ -1879,10 +1879,8 @@ function updateCloudProviderUI() {
             btnRender.style.fontWeight = 'normal';
         }
     }
-    if (badge && currentOverlayHostMode === 'cloud') {
-        badge.innerText = isCf ? 'Cloudflare (Ilimitado)' : 'En línea en Render';
-        badge.style.color = isCf ? '#f38020' : '#00d2d3';
-        badge.style.borderColor = isCf ? '#f38020' : '#00d2d3';
+    if (badge) {
+        badge.style.display = 'none';
     }
 }
 
@@ -1943,59 +1941,13 @@ async function regenerateCloudToken() {
 }
 
 function setOverlayHostMode(mode) {
-    currentOverlayHostMode = mode;
-    localStorage.setItem('s4e_overlay_host_mode', mode);
+    currentOverlayHostMode = 'cloud';
+    localStorage.setItem('s4e_overlay_host_mode', 'cloud');
 
-    const btnLocal = document.getElementById('btn-host-local');
-    const btnCloud = document.getElementById('btn-host-cloud');
     const badge = document.getElementById('cloud-status-badge');
+    if (badge) badge.style.display = 'none';
     const tokenContainer = document.getElementById('cloud-token-container');
-
-    if (mode === 'cloud') {
-        if (btnCloud) {
-            btnCloud.className = 'btn btn-blue btn-sm';
-            btnCloud.style.background = '#00d2d3';
-            btnCloud.style.color = '#000';
-            btnCloud.style.fontWeight = 'bold';
-        }
-        if (btnLocal) {
-            btnLocal.className = 'btn btn-outline btn-sm';
-            btnLocal.style.background = '';
-            btnLocal.style.color = '';
-            btnLocal.style.fontWeight = 'normal';
-        }
-        if (badge) {
-            badge.style.display = 'inline-block';
-            badge.innerText = 'En línea en Render';
-            badge.style.borderColor = '#00d2d3';
-            badge.style.color = '#00d2d3';
-        }
-        if (tokenContainer) {
-            tokenContainer.style.display = 'flex';
-        }
-    } else {
-        if (btnLocal) {
-            btnLocal.className = 'btn btn-blue btn-sm';
-            btnLocal.style.background = 'var(--primary-blue)';
-            btnLocal.style.color = '#fff';
-            btnLocal.style.fontWeight = 'bold';
-        }
-        if (btnCloud) {
-            btnCloud.className = 'btn btn-outline btn-sm';
-            btnCloud.style.background = '';
-            btnCloud.style.color = '#aaa';
-            btnCloud.style.fontWeight = 'normal';
-        }
-        if (badge) {
-            badge.style.display = 'inline-block';
-            badge.innerText = 'Local (PC)';
-            badge.style.borderColor = '#888';
-            badge.style.color = '#aaa';
-        }
-        if (tokenContainer) {
-            tokenContainer.style.display = 'none';
-        }
-    }
+    if (tokenContainer) tokenContainer.style.display = 'none';
 
     const effectiveToken = CLOUD_TOKEN || 'hinu';
     document.querySelectorAll('.overlay-link-input').forEach(input => {
