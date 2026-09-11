@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Lienzo de Overlays (Scene Editor)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: transparent;
+            width: 100vw;
+            height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+            box-sizing: border-box;
+        }
+
+        /* Fondo de cuadrícula solo en modo edición */
+        body.edit-mode {
+            background-color: rgba(0, 0, 0, 0.5);
+            background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .widget-container {
+            position: absolute;
+            border: 2px solid transparent;
+            box-sizing: border-box;
+        }
+
+        /* Estilos de la caja al editar */
+        body.edit-mode .widget-container {
+            border: 2px dashed rgba(255, 215, 0, 0.8);
+            background: rgba(255, 215, 0, 0.1);
+            cursor: grab;
+        }
+        
+        body.edit-mode .widget-container:active {
+            cursor: grabbing;
+        }
+        
+        /* Estilo para el widget seleccionado */
+        body.edit-mode .widget-container.selected {
+            border-color: #00ff00 !important;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+            z-index: 500;
+        }
+
+        .widget-scaler {
+            position: absolute;
+            top: 0; left: 0;
+            transform-origin: top left;
+        }
+
+        .widget-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        /* TRUCO MAGICO: Evita que el iframe robe el clic del ratón al arrastrar */
+        body.edit-mode .widget-scaler {
+            pointer-events: none; 
+        }
+
+        /* Controles (Borrar) de cada widget */
+        .widget-controls {
+            position: absolute;
+            top: -45px;
+            right: 0;
+            background: #222;
+            padding: 5px;
+            border-radius: 6px;
+            display: none;
+            gap: 10px;
+            border: 1px solid #444;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        body.edit-mode .widget-container:hover .widget-controls {
+            display: flex;
+        }
+
+        /* Manijas de redimensionamiento */
+        .resize-handle {
+            position: absolute;
+            width: 16px; height: 16px;
+            background: #ffd700; border: 2px solid #222;
+            border-radius: 50%;
+            z-index: 20; display: none;
+        }
+        body.edit-mode .widget-container:hover .resize-handle { display: block; }
+        .handle-se { bottom: -8px; right: -8px; cursor: se-resize; }
+        .handle-sw { bottom: -8px; left: -8px; cursor: sw-resize; }
+        .handle-ne { top: -8px; right: -8px; cursor: ne-resize; }
+        .handle-nw { top: -8px; left: -8px; cursor: nw-resize; }
+    </style>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="./token-bridge.js"></script>
+</head>
+<body>
+
+    <div id="canvas"></div>
+
+    <script>
+        let ipcRenderer;
+        try {
+            const electron = require('electron');
+            ipcRenderer = electron.ipcRenderer;
+        } catch (e) { console.log('Modo navegador puro'); }
+
+        // Detectar si lo abrimos con ?edit=true
+        const urlParams = new URLSearchParams(window.location.search);
+        const isEditMode = urlParams.get('edit') === 'true';
+        if (isEditMode) document.body.classList.add('edit-mode');
+
+        let allLayouts = { '16/9': [], '9/16': [] };
+        let widgets = [];
+        let currentRatio = '16/9';
+        let selectedWidgetId = null;
+        const canvas = document.getElementById('canvas');
+
+        async function initCanvas() {
+            if (ipcRenderer) {
+                allLayouts = await ipcRenderer.invoke('get-canvas-layout');
+            } else {
+                try {
+                    const res = await fetch('http://localhost:3011/canvas-layout');
+                    allLayouts = await res.json();
+                } catch(e) {
+                    allLayouts = JSON.parse(localStorage.getItem('livemu_canvas_layout') || '{"16/9":[], "9/16":[]}');
+                }
+            }
+            
+            // Migración de emergencia si llega un array viejo
+            if (Array.isArray(allLayouts)) {
+                allLayouts = { '16/9': allLayouts, '9/16': [] };
+            }
+            if (!allLayouts || typeof allLayouts !== 'object') allLayouts = { '16/9': [], '9/16': [] };
+            if (!allLayouts['16/9']) allLayouts['16/9'] = [];
+            if (!allLayouts['9/16']) allLayouts['9/16'] = [];
+            
+            applyCurrentRatio();
+        }
+
+        // [FIX DEFINITIVO] Escuchar la resolución correcta enviada por el proceso principal.
+        // Esto elimina la "adivinanza" del tamaño de la ventana al iniciar.
+        if (ipcRenderer) {
+            ipcRenderer.on('set-initial-ratio', (event, ratio) => {
+                console.log('Received initial ratio:', ratio);
+                currentRatio = ratio;
+                applyCurrentRatio(true); // Forzar aplicación con el ratio correcto
+            });
+        }
+
+        function applyCurrentRatio() {
+            currentRatio = window.innerHeight > window.innerWidth ? '9/16' : '16/9';
+            widgets = allLayouts[currentRatio] || [];
+            
+            // Si cambiamos el tamaño de la ventana, forzar a que no se salgan
+            widgets.forEach(w => clampWidget(w));
+            
+            renderWidgets();
+        }
+        
+        window.addEventListener('resize', applyCurrentRatio);
+
+        function broadcastUpdate(fullRender = false) {
+            if (isEditMode && ipcRenderer) {
+                ipcRenderer.send('canvas-sync-update', { ratio: currentRatio, widgets, fullRender });
+            } else if (isEditMode && window.parent) {
+                window.parent.postMessage({ channel: 'canvas-sync-update', data: { ratio: currentRatio, widgets, fullRender } }, '*');
+            }
+        }
+
+        function renderWidgets() {
+            canvas.innerHTML = '';
+            widgets.forEach(w => {
+                // Validar y sanear dimensiones para evitar widgets invisibles
+                if (!w.w || isNaN(w.w)) w.w = 300;
+                if (!w.h || isNaN(w.h)) w.h = 300;
+                if (!w.x || isNaN(w.x)) w.x = 0;
+                if (!w.y || isNaN(w.y)) w.y = 0;
+                if (w.scale === undefined || isNaN(w.scale)) w.scale = 1;
+
+                clampWidget(w);
+
+                const physicalW = w.w * w.scale;
+                const physicalH = w.h * w.scale;
+
+                const container = document.createElement('div');
+                container.className = 'widget-container';
+                container.id = 'widget-box-' + w.id;
+                if (selectedWidgetId === w.id) container.classList.add('selected');
+                container.style.cssText = `left: ${w.x}px; top: ${w.y}px; width: ${physicalW}px; height: ${physicalH}px;`;
+
+                const scaler = document.createElement('div');
+                scaler.className = 'widget-scaler';
+                scaler.id = 'widget-scaler-' + w.id;
+                scaler.style.cssText = `width: ${w.w}px; height: ${w.h}px; transform: scale(${w.scale});`;
+
+                const iframe = document.createElement('iframe');
+                iframe.className = 'widget-iframe';
+                iframe.src = w.url;
+                iframe.setAttribute('allowTransparency', 'true');
+                scaler.appendChild(iframe);
+
+                const controls = document.createElement('div');
+                controls.className = 'widget-controls';
+                controls.innerHTML = `<span style="color:#aaa; font-size:14px; font-weight:bold; max-width:150px; overflow:hidden; white-space:nowrap; padding: 0 5px;">${w.url.split('/').pop()}</span>
+                                      <button class="danger" style="padding: 8px 12px; font-size:16px; cursor:pointer; background:#dc3545; color:white; border:none; border-radius:4px;" onclick="removeWidget('${w.id}')"><i class="fa-solid fa-trash"></i></button>`;
+
+                container.appendChild(scaler);
+                container.appendChild(controls);
+
+                ['se','sw','ne','nw'].forEach(dir => {
+                    const handle = document.createElement('div');
+                    handle.className = `resize-handle handle-${dir}`;
+                    handle.dataset.handle = dir;
+                    container.appendChild(handle);
+                });
+                
+                canvas.appendChild(container);
+                if (isEditMode) makeDraggable(container, w);
+            });
+        }
+
+        function removeWidget(id) { 
+            if (selectedWidgetId === id) selectedWidgetId = null;
+            widgets = widgets.filter(w => w.id !== id); 
+            renderWidgets(); 
+            broadcastUpdate(true);
+            saveLayout();
+        }
+        
+        // --- SISTEMA DE COLISIONES ---
+        function clampWidget(w) {
+            const maxW = window.innerWidth;
+            const maxH = window.innerHeight;
+            const physicalW = w.w * w.scale;
+            const physicalH = w.h * w.scale;
+
+            if (w.x < 0) w.x = 0;
+            if (w.y < 0) w.y = 0;
+            if (w.x + physicalW > maxW) w.x = Math.max(0, maxW - physicalW);
+            if (w.y + physicalH > maxH) w.y = Math.max(0, maxH - physicalH);
+        }
+
+        function saveLayout() { 
+            allLayouts[currentRatio] = widgets;
+            if (ipcRenderer) {
+                ipcRenderer.send('save-canvas-layout', allLayouts);
+            } else if (isEditMode && window.parent) {
+                window.parent.postMessage({ command: 'saveCanvasLayout', layout: allLayouts }, '*');
+            } else {
+                localStorage.setItem('livemu_canvas_layout', JSON.stringify(allLayouts)); 
+            }
+        }
+
+        function makeDraggable(el, wObj) {
+            let isDragging = false, isResizing = false, currentHandle = null, start = {};
+            el.addEventListener('mousedown', e => {
+                if(e.target.closest('.widget-controls')) return;
+                
+                // Seleccionar widget
+                document.querySelectorAll('.widget-container').forEach(c => c.classList.remove('selected'));
+                el.classList.add('selected');
+                selectedWidgetId = wObj.id;
+                window.focus(); // Asegurar foco para capturar el teclado
+
+                e.target.classList.contains('resize-handle') ? (isResizing = true, currentHandle = e.target.dataset.handle) : (isDragging = true);
+                if (wObj.scale === undefined) wObj.scale = 1;
+                start = { x: wObj.x, y: wObj.y, w: wObj.w, h: wObj.h, scale: wObj.scale, mx: e.clientX, my: e.clientY };
+                el.style.zIndex = 1000; e.preventDefault();
+            });
+            window.addEventListener('mousemove', e => {
+                if (!isDragging && !isResizing) return;
+                const zoom = 1; // La escala es manejada por el navegador nativamente ahora
+                const dx = (e.clientX - start.mx) / zoom;
+                const dy = (e.clientY - start.my) / zoom;
+                
+                const maxW = window.innerWidth;
+                const maxH = window.innerHeight;
+                
+                if (isDragging) { 
+                    wObj.x = start.x + dx; wObj.y = start.y + dy; 
+                    clampWidget(wObj);
+                    el.style.left = wObj.x + 'px'; el.style.top = wObj.y + 'px'; 
+                }
+                else if (isResizing) {
+                    const scaler = el.querySelector('.widget-scaler');
+                    // --- ZOOM DEL WIDGET (TECLA SHIFT) ---
+                    if (e.shiftKey) {
+                        let newVisualW = start.w * start.scale;
+                        let newVisualH = start.h * start.scale;
+
+                        if(currentHandle.includes('e')) newVisualW = (start.w * start.scale) + dx;
+                        if(currentHandle.includes('w')) newVisualW = (start.w * start.scale) - dx;
+                        if(currentHandle.includes('s')) newVisualH = (start.h * start.scale) + dy;
+                        if(currentHandle.includes('n')) newVisualH = (start.h * start.scale) - dy;
+
+                        if (currentHandle.includes('e') || currentHandle.includes('w')) {
+                            wObj.scale = Math.max(0.1, newVisualW / start.w);
+                        } else {
+                            wObj.scale = Math.max(0.1, newVisualH / start.h);
+                        }
+
+                        if(currentHandle.includes('w')) wObj.x = start.x + (start.w * start.scale) - (start.w * wObj.scale);
+                        if(currentHandle.includes('n')) wObj.y = start.y + (start.h * start.scale) - (start.h * wObj.scale);
+
+                        // Limitadores de pared para Escala
+                        if (wObj.x < 0) { wObj.x = 0; wObj.scale = (start.x + start.w * start.scale) / start.w; }
+                        if (wObj.y < 0) { wObj.y = 0; wObj.scale = (start.y + start.h * start.scale) / start.h; }
+                        if (wObj.x + wObj.w * wObj.scale > maxW) wObj.scale = (maxW - wObj.x) / wObj.w;
+                        if (wObj.y + wObj.h * wObj.scale > maxH) wObj.scale = (maxH - wObj.y) / wObj.h;
+
+                        el.style.width = (start.w * wObj.scale) + 'px';
+                        el.style.height = (start.h * wObj.scale) + 'px';
+                        if(scaler) scaler.style.transform = `scale(${wObj.scale})`;
+                    } else {
+                        // --- REDIMENSIONAMIENTO NORMAL ---
+                        if(currentHandle.includes('e')) wObj.w = Math.max(50, start.w + dx / start.scale);
+                        if(currentHandle.includes('s')) wObj.h = Math.max(50, start.h + dy / start.scale);
+                        if(currentHandle.includes('w')) { const nw = Math.max(50, start.w - dx / start.scale); wObj.x = start.x + (start.w - nw) * start.scale; wObj.w = nw; }
+                        if(currentHandle.includes('n')) { const nh = Math.max(50, start.h - dy / start.scale); wObj.y = start.y + (start.h - nh) * start.scale; wObj.h = nh; }
+                        
+                        // Limitadores de pared para Redimensionamiento
+                        if (wObj.x < 0) { wObj.w -= Math.abs(wObj.x) / wObj.scale; wObj.x = 0; }
+                        if (wObj.y < 0) { wObj.h -= Math.abs(wObj.y) / wObj.scale; wObj.y = 0; }
+                        if (wObj.x + wObj.w * wObj.scale > maxW) wObj.w = (maxW - wObj.x) / wObj.scale;
+                        if (wObj.y + wObj.h * wObj.scale > maxH) wObj.h = (maxH - wObj.y) / wObj.scale;
+
+                        el.style.width = (wObj.w * wObj.scale) + 'px'; 
+                        el.style.height = (wObj.h * wObj.scale) + 'px';
+                        if(scaler) {
+                            scaler.style.width = wObj.w + 'px';
+                            scaler.style.height = wObj.h + 'px';
+                        }
+                    }
+                    
+                    el.style.left = wObj.x + 'px'; 
+                    el.style.top = wObj.y + 'px';
+                }
+                if (isDragging || isResizing) broadcastUpdate(false);
+            });
+            window.addEventListener('mouseup', () => { 
+                if (isDragging || isResizing) {
+                    isDragging = false; isResizing = false; el.style.zIndex = ''; 
+                    saveLayout();
+                }
+            });
+        }
+
+        // Eliminar con la tecla Supr o Backspace
+        document.addEventListener('keydown', (e) => {
+            if (isEditMode && (e.key === 'Delete' || e.key === 'Backspace')) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                if (selectedWidgetId) {
+                    removeWidget(selectedWidgetId);
+                }
+            }
+        });
+        
+        // Deseleccionar al hacer clic en el fondo vacío
+        document.addEventListener('mousedown', (e) => {
+            if (isEditMode && !e.target.closest('.widget-container')) {
+                document.querySelectorAll('.widget-container').forEach(c => c.classList.remove('selected'));
+                selectedWidgetId = null;
+            }
+        });
+
+        // Recibir actualizaciones en tiempo real en la ventana transparente capturada
+        if (!isEditMode && ipcRenderer) {
+            ipcRenderer.on('canvas-sync-update', (event, data) => {
+                if (data.ratio === currentRatio) {
+                    widgets = data.widgets;
+                    allLayouts[currentRatio] = widgets;
+                    if (data.fullRender) renderWidgets(); // Añadió/borró widget
+                    else {
+                        // Actualización súper fluida: solo cambia el estilo sin recargar iframe
+                        widgets.forEach(w => {
+                            const el = document.getElementById('widget-box-' + w.id);
+                            if (el) {
+                                el.style.cssText = `left: ${w.x}px; top: ${w.y}px; width: ${w.w * (w.scale || 1)}px; height: ${w.h * (w.scale || 1)}px;`;
+                                const scaler = document.getElementById('widget-scaler-' + w.id);
+                                if (scaler) {
+                                    scaler.style.width = w.w + 'px';
+                                    scaler.style.height = w.h + 'px';
+                                    scaler.style.transform = `scale(${w.scale || 1})`;
+                                }
+                            }
+                        });
+                    }
+                } else {
+                    allLayouts[data.ratio] = data.widgets; // Guarda en background la info de la otra orientación
+                }
+            });
+            
+            ipcRenderer.on('canvas-profile-changed', () => {
+                initCanvas(); // Recargar todo cuando se cambia de perfil
+            });
+        }
+
+        // --- ESCUCHAR COMANDOS DESDE EL PANEL PRINCIPAL ---
+        window.addEventListener('message', (event) => {
+            if (event.data) {
+                if (event.data.command === 'addWidget') {
+                    const logicalW = window.innerWidth;
+                    const logicalH = window.innerHeight;
+                    
+                    widgets.push({ id: Date.now().toString(), url: event.data.url, x: (logicalW/2) - 150, y: (logicalH/2) - 150, w: 300, h: 300, scale: 1 });
+                    renderWidgets();
+                    broadcastUpdate(true);
+                    saveLayout();
+                } else if (event.data.command === 'saveLayout') {
+                    saveLayout();
+                } else if (event.data.command === 'clearCanvas') {
+                    widgets = [];
+                    renderWidgets();
+                    broadcastUpdate(true);
+                    saveLayout();
+                } else if (event.data.command === 'reloadProfile') {
+                    initCanvas();
+                } else if (event.data.command === 'deleteSelected') {
+                    if (selectedWidgetId) {
+                        removeWidget(selectedWidgetId);
+                    }
+                }
+            }
+        });
+
+        initCanvas();
+    </script>
+</body>
+</html>

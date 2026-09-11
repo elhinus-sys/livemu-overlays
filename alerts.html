@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Alertas</title>
+    <style>
+        body { 
+            margin: 0; padding: 0; overflow: hidden; background: transparent; 
+            height: 100vh; width: 100vw;
+            /* Bordes y fondo para identificar la ventana al pasar el mouse */
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            cursor: none;
+        }
+        /* Solo mostrar guías en Modo Edición */
+        body.edit-mode {
+            border-color: rgba(255, 255, 255, 0.3);
+            background-color: rgba(0, 0, 0, 0.4); /* Fondo más visible al pasar el mouse */
+            background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px);
+            background-size: 20px 20px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            cursor: default;
+        }
+
+        /* Estilos para el modo de vista previa */
+        body.preview-mode {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(30, 30, 30, 0.7);
+            cursor: default !important; /* Asegurar que el cursor sea visible en la vista previa */
+        }
+        body.preview-mode #media-container {
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            border: none !important; /* Quitar el borde amarillo en la vista previa */
+            cursor: default !important;
+        }
+        body.preview-mode .drag-region,
+        body.preview-mode .resize-handle {
+            display: none !important; /* Ocultar controles de edición */
+        }
+
+        #media-container { 
+            position: absolute;
+            /* Tamaño inicial por defecto */
+            width: 400px; height: 400px;
+            cursor: grab; /* Cursor de mano para mover */
+            container-type: size; /* Permite que el texto escale con el contenedor */
+            transform-origin: center center;
+        }
+        #media-container:active { cursor: grabbing; }
+
+        /* Indicador del área del widget al editar */
+        body.edit-mode #media-container {
+            border: 2px dashed rgba(255, 215, 0, 0.5);
+            background: rgba(255, 215, 0, 0.1); /* Fondo sutil para identificar el widget vacío */
+            display: flex; justify-content: center; align-items: center;
+        }
+        body.edit-mode #media-container::before {
+            content: ''; /* Texto eliminado para que no salga en captura */
+            display: none;
+        }
+        body.edit-mode #media-container:empty::before, 
+        body.edit-mode #media-container:not(:has(img[style*="block"])):not(:has(video[style*="block"]))::before {
+            display: block; /* Mostrar texto solo si no hay media visible */
+        }
+
+        img, video { width: 100%; height: 100%; object-fit: contain; display: none; }
+        
+        .fade-in { animation: fadeIn 0.5s ease forwards; }
+        .fade-out { animation: fadeOut 0.5s ease forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.1); } }
+
+        /* ESTILOS DEL NOMBRE */
+        .username-wrapper {
+            color: #ffcc00; /* Color amarillo */
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        /* Clase para cada letra */
+        .wave-char {
+            display: inline-block;
+            /* Animación de 1.2 segundos, infinita, con movimiento suave */
+            animation: wave 1.2s ease-in-out infinite;
+        }
+
+        /* LA ANIMACIÓN DE OLA */
+        @keyframes wave {
+            0%, 100% {
+                transform: translateY(0); /* Posición original */
+            }
+            50% {
+                transform: translateY(-6px); /* Sube 6 píxeles suavemente */
+            }
+        }
+
+        #user-text {
+            position: absolute;
+            bottom: 10%;
+            width: 100%;
+            text-align: center;
+            font-size: 6cqw; /* Tamaño dinámico (6% del ancho del widget) */
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 8px black, 0 0 4px black;
+            font-family: 'Segoe UI', sans-serif;
+            z-index: 10;
+            display: none;
+        }
+
+        /* Área para arrastrar la ventana si se abre en modo ventana */
+        .drag-region {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            -webkit-app-region: drag;
+            z-index: 10000;
+        }
+        /* Solo mostrar hover en la barra si estamos en modo edición */
+        body.edit-mode .drag-region {
+            background: rgba(255, 255, 255, 0.1); /* Siempre visible en modo edición */
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.3);
+        }
+
+        /* Manijas de redimensionamiento */
+        .resize-handle {
+            position: absolute;
+            width: 12px; height: 12px;
+            background: #fff; border: 1px solid #000;
+            z-index: 20; display: none;
+        }
+        /* Mostrar manijas solo al pasar el mouse sobre el widget en modo edición */
+        body.edit-mode #media-container:hover .resize-handle { display: block; }
+        .handle-nw { top: -6px; left: -6px; cursor: nw-resize; }
+        .handle-ne { top: -6px; right: -6px; cursor: ne-resize; }
+        .handle-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+        .handle-se { bottom: -6px; right: -6px; cursor: se-resize; }
+    </style>
+    <script src="./token-bridge.js"></script>
+</head>
+<body>
+    <div class="drag-region" title="Arrastra desde aquí"></div>
+    <div id="media-container">
+        <img id="img-element">
+        <video id="video-element"></video>
+        <div id="user-text"></div>
+        <div class="resize-handle handle-nw" data-handle="nw"></div>
+        <div class="resize-handle handle-ne" data-handle="ne"></div>
+        <div class="resize-handle handle-sw" data-handle="sw"></div>
+        <div class="resize-handle handle-se" data-handle="se"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        let ipcRenderer;
+        try {
+            const electron = require('electron');
+            ipcRenderer = electron.ipcRenderer;
+        } catch (e) { /* Browser Mode (OBS/Chrome) - No Electron available */ }
+
+        const imgEl = document.getElementById('img-element');
+        const vidEl = document.getElementById('video-element');
+        const textEl = document.getElementById('user-text');
+        let timeout = null;
+
+        // Detectar modo edición por URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const isEditMode = urlParams.get('edit') === 'true';
+
+        // Detección de modo preview
+        const isPreviewMode = urlParams.get('preview') === 'true';
+
+        if (isEditMode) {
+            document.body.classList.add('edit-mode');
+            document.title = "Editor de Alertas - NO CAPTURAR";
+        }
+        if (isPreviewMode) {
+            document.body.classList.add('preview-mode');
+        }
+
+        const container = document.getElementById('media-container');
+        // Default dinámico: Centrado en la pantalla si no hay configuración guardada
+        let widgetState = { 
+            x: Math.max(0, (window.innerWidth - 400) / 2), 
+            y: Math.max(0, (window.innerHeight - 400) / 2), 
+            w: 400, h: 400 
+        };
+
+        try {
+            const saved = localStorage.getItem('alerts_widget_state');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Migración simple si viene del formato antiguo (scale)
+                if (parsed.scale !== undefined) {
+                    const size = 400 * parsed.scale;
+                    widgetState = { 
+                        x: (window.innerWidth * (parsed.x/100)) - (size/2), 
+                        y: (window.innerHeight * (parsed.y/100)) - (size/2), 
+                        w: size, h: size 
+                    };
+                } else {
+                    widgetState = parsed;
+                }
+            }
+        } catch(e) {}
+
+        function updateWidgetStyle() {
+            // En OBS (sin Electron) recalculamos la posición para mantenerlo centrado
+            if (!isEditMode && !ipcRenderer) {
+                widgetState.x = (window.innerWidth - widgetState.w) / 2;
+                widgetState.y = (window.innerHeight - widgetState.h) / 2;
+            }
+
+            container.style.width = widgetState.w + 'px';
+            container.style.height = widgetState.h + 'px';
+            
+            if (isPreviewMode) {
+                // Ajuste dinámico para que quepa en la ventana de vista previa
+                const scaleX = (window.innerWidth - 40) / widgetState.w;
+                const scaleY = (window.innerHeight - 40) / widgetState.h;
+                const scale = Math.min(scaleX, scaleY, 0.85); // Max scale 0.85 para mejor visibilidad
+                container.style.transform = `scale(${Math.max(0.1, scale)})`;
+            } else {
+                container.style.left = widgetState.x + 'px';
+                container.style.top = widgetState.y + 'px';
+                
+                // En OBS, si la ventana es muy pequeña, escalar para ajustar
+                if (!isEditMode && !ipcRenderer) {
+                    const scale = Math.min(window.innerWidth / widgetState.w, window.innerHeight / widgetState.h, 1);
+                    container.style.transform = scale < 1 ? `scale(${scale})` : 'none';
+                } else {
+                    container.style.transform = 'none';
+                }
+            }
+            
+            // Si somos el editor, enviamos la posición a la ventana de captura
+            if (isEditMode && ipcRenderer) {
+                ipcRenderer.send('alerts-sync-update', widgetState);
+            }
+        }
+        updateWidgetStyle();
+
+        // Si somos la ventana de captura, escuchamos cambios
+        if (!isEditMode && ipcRenderer) {
+            ipcRenderer.on('alerts-sync-update', (event, data) => {
+                widgetState = data;
+                updateWidgetStyle();
+            });
+        }
+        
+        // Actualizar al redimensionar ventana (importante para preview)
+        window.addEventListener('resize', updateWidgetStyle);
+
+        // Arrastrar (Drag)
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let isResizing = false;
+        let currentHandle = null;
+        let resizeStart = {};
+
+        // Solo activar listeners de mouse en modo edición
+        if (isEditMode) {
+            container.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('resize-handle')) return;
+                if (e.button === 0) {
+                    isDragging = true;
+                    dragOffset.x = e.clientX - widgetState.x;
+                    dragOffset.y = e.clientY - widgetState.y;
+                }
+            });
+
+            document.querySelectorAll('.resize-handle').forEach(h => {
+                h.addEventListener('mousedown', (e) => {
+                    if (e.button === 0) {
+                        e.stopPropagation();
+                        isResizing = true;
+                        currentHandle = h.dataset.handle;
+                        resizeStart = { x: widgetState.x, y: widgetState.y, w: widgetState.w, h: widgetState.h, mx: e.clientX, my: e.clientY };
+                    }
+                });
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isDragging || isResizing) {
+                    isDragging = false;
+                    isResizing = false;
+                    localStorage.setItem('alerts_widget_state', JSON.stringify(widgetState));
+                }
+            });
+            window.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    widgetState.x = e.clientX - dragOffset.x;
+                    widgetState.y = e.clientY - dragOffset.y;
+                    updateWidgetStyle();
+                } else if (isResizing) {
+                    const dx = e.clientX - resizeStart.mx;
+                    const dy = e.clientY - resizeStart.my;
+                    
+                    if (currentHandle.includes('e')) widgetState.w = Math.max(50, resizeStart.w + dx);
+                    if (currentHandle.includes('s')) widgetState.h = Math.max(50, resizeStart.h + dy);
+                    if (currentHandle.includes('w')) {
+                        const newW = Math.max(50, resizeStart.w - dx);
+                        widgetState.x = resizeStart.x + (resizeStart.w - newW);
+                        widgetState.w = newW;
+                    }
+                    if (currentHandle.includes('n')) {
+                        const newH = Math.max(50, resizeStart.h - dy);
+                        widgetState.y = resizeStart.y + (resizeStart.h - newH);
+                        widgetState.h = newH;
+                    }
+                    updateWidgetStyle();
+                }
+            });
+        }
+        // ------------------------------------------
+
+        // Conectar via Socket.IO para recibir eventos en tiempo real
+        try {
+            const streamToken = urlParams.get('token') || 'default';
+            const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+            const socket = io(socketHost, {
+                query: { token: streamToken },
+                reconnection: true,
+                reconnectionAttempts: Infinity,
+                reconnectionDelay: 1000
+            });
+
+            socket.on('connect', () => {
+                console.log('[Alertas] Conectado a sala:', streamToken);
+                socket.emit('join-room', streamToken);
+            });
+
+            socket.on('media-event', (data) => {
+                // Al ser un evento push, no necesitamos comprobar el ID.
+                // Cada evento recibido es nuevo.
+                if (data && data.id) {
+                    playMedia(data);
+                }
+            });
+        } catch(e) {
+            console.error("Socket.io no disponible. Usando polling como fallback.");
+            // Fallback a polling si socket.io no está disponible
+            let lastEventId = null;
+            setInterval(() => {
+                fetch('http://localhost:3011/media-event')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.id && data.id !== lastEventId) {
+                            lastEventId = data.id;
+                            playMedia(data);
+                        }
+                    }).catch(err => {});
+            }, 750); // Aumentar un poco el intervalo del fallback
+        }
+
+        function playMedia(data) {
+            if (!data.file) return;
+            
+            clearTimeout(timeout);
+            imgEl.style.display = 'none';
+            vidEl.style.display = 'none';
+            textEl.style.display = 'none';
+            imgEl.className = '';
+            vidEl.className = '';
+            textEl.className = '';
+            vidEl.pause();
+
+            const isVideo = data.file.match(/\.(mp4|webm|mov)$/i);
+            const element = isVideo ? vidEl : imgEl;
+            
+            let src = data.file;
+            if (src.startsWith('file:') || src.match(/^[a-zA-Z]:/)) {
+                src = 'http://localhost:3011/local-file?path=' + encodeURIComponent(src);
+            }
+            element.src = src;
+            element.style.display = 'block';
+            element.classList.add('fade-in');
+
+            if (data.showUser && data.username) {
+                const escapeHtml = (str) => {
+                    if (!str) return '';
+                    return String(str)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#039;');
+                };
+
+                // AQUÍ ESTÁ EL TRUCO DE LA OLA:
+                // Usamos el 'index' (i) para calcular el retraso.
+                // Cada letra espera 0.1s más que la anterior para empezar a moverse.
+                const safeUsername = escapeHtml(data.username);
+                const wrappedLetters = safeUsername.split('').map((char, i) => {
+                    const content = char === ' ' ? '&nbsp;' : char;
+                    // Agregamos style="animation-delay: ..." dinámicamente
+                    return `<span class="wave-char" style="animation-delay: ${i * 0.1}s">${content}</span>`;
+                }).join('');
+
+                const safeGiftName = data.giftName ? escapeHtml(data.giftName) : '';
+                const safeActionText = data.actionText ? escapeHtml(data.actionText) : '';
+                const giftInfo = safeGiftName ? ` envió ${safeGiftName}` : safeActionText;
+                
+                textEl.innerHTML = `<span class="username-wrapper">${wrappedLetters}</span> ${giftInfo}`;
+                
+                textEl.style.display = 'block';
+                textEl.classList.add('fade-in');
+            }
+
+            if (isVideo) {
+                vidEl.currentTime = 0;
+                
+                // Aplicar el volumen que viene desde la configuración de la app
+                let vol = data.volume !== undefined ? data.volume : 100;
+                vidEl.volume = vol / 100;
+                vidEl.muted = (vol === 0); // Solo mutear si el volumen es 0
+                
+                vidEl.play().catch(e => console.error("Error playing video:", e));
+                vidEl.onended = () => hideMedia(element);
+            } else {
+                timeout = setTimeout(() => {
+                    hideMedia(element);
+                }, (data.duration || 5) * 1000);
+            }
+        }
+
+        function hideMedia(element) {
+            element.classList.remove('fade-in');
+            element.classList.add('fade-out');
+            
+            if (textEl.style.display !== 'none') {
+                textEl.classList.remove('fade-in');
+                textEl.classList.add('fade-out');
+            }
+
+            setTimeout(() => {
+                element.style.display = 'none';
+                element.classList.remove('fade-out');
+                textEl.style.display = 'none';
+                textEl.classList.remove('fade-out');
+            }, 500);
+        }
+    </script>
+</body>
+</html>

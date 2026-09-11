@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveMu
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin-top: 30px;
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        h1 { color: #bb86fc; text-align: center; margin-bottom: 30px; }
+        .control-group {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #2c2c2c;
+            border-radius: 8px;
+        }
+        label { display: block; margin-bottom: 10px; font-weight: bold; color: #03dac6; }
+        input {
+            width: 100%;
+            padding: 12px;
+            background: #383838;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            background: #bb86fc;
+            color: black;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 15px;
+            width: 100%;
+            transition: background 0.3s;
+        }
+        button:hover { background: #9965f4; }
+        .log-area {
+            background: #000;
+            color: #00ff00;
+            font-family: 'Consolas', monospace;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            border-radius: 4px;
+            margin-top: 20px;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LiveMu - Mod
+        <div class="control-group">
+            <label>Conectar a TikTok Live</label>
+            <input type="text" id="tiktokUser" placeholder="Introduce el usuario (ej. auronplay)">
+            <button onclick="connectTikTok()">Conectar</button>
+        </div>
+
+        <div class="log-area" id="consoleLog">
+            > Sistema local iniciado. Esperando comandos...
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        function log(msg) {
+            const el = document.getElementById('consoleLog');
+            const time = new Date().toLocaleTimeString();
+            el.innerHTML += `<br>[${time}] ${msg}`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function connectTikTok() {
+            const user = document.getElementById('tiktokUser').value;
+            if(!user) return log('Error: Debes escribir un nombre de usuario.');
+            
+            log('Intentando conectar con: ' + user + '...');
+            // Enviamos el evento al proceso principal (main.js)
+            ipcRenderer.send('getRoomInfo', { username: user });
+        }
+
+        // Escuchar respuestas del sistema
+        ipcRenderer.on('getRoomInfo', (event, info) => {
+            log('¡Conexión exitosa! Información de la sala recibida.');
+            console.log(info); // Ver detalles completos en la consola de desarrollador (Ctrl+Shift+I)
+        });
+
+        // Escuchar teclas físicas (Alt+0, Alt+1, etc.)
+        ipcRenderer.on('lastDigitPressed', (event, digit) => {
+            log('Tecla física detectada: Alt + ' + digit);
+        });
+    </script>
+</body>
+</html>

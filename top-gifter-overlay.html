@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Gifters Rankings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FFD700;
+            --primary-glow: rgba(255, 215, 0, 0.5);
+            --secondary: #FFA500;
+            --bg-glass: rgba(15, 23, 42, 0.6);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --gold: #FFD700;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            padding: 20px;
+            overflow: hidden;
+            background-color: transparent;
+            font-family: 'Outfit', sans-serif;
+            color: #ffffff;
+        }
+
+        .ranking-container {
+            width: 360px;
+            position: relative;
+        }
+
+        .coin-icon {
+            display: inline-block;
+            animation: pulseCoin 1.5s infinite;
+            filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+        }
+
+        .liker-list {
+            position: relative;
+            min-height: 80px; 
+            transition: height 0.4s ease;
+        }
+
+        .liker-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: transparent;
+            padding: 4px 10px; 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: slideIn 0.5s ease backwards;
+            position: absolute;
+            width: 100%;
+            left: 0;
+        }
+
+        .liker-item:hover {
+            transform: translateX(5px);
+        }
+
+        .rank {
+            font-weight: 900;
+            font-size: 1.1rem;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .avatar-container {
+            position: relative;
+        }
+
+        .avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            object-fit: cover;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transition: border-color 0.3s ease;
+        }
+
+        .info {
+            flex-grow: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .nickname {
+            font-weight: 800;
+            font-size: 1.15rem;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #ffffff;
+            text-shadow: 1px 2px 5px rgba(0, 0, 0, 0.9), 0 0 8px rgba(255, 255, 255, 0.3);
+        }
+
+        .likes {
+            font-size: 0.9rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .likes-count {
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .gap-alert {
+            font-size: 0.75rem;
+            color: #ff4d4d;
+            font-weight: 800;
+            margin-top: 2px;
+            text-shadow: 0 0 5px rgba(255, 77, 77, 0.5);
+            animation: pulseAlert 1s infinite;
+            display: none; 
+        }
+
+        .liker-item.rank-1 {
+            z-index: 5;
+        }
+
+        .liker-item.rank-1 .rank {
+            background: linear-gradient(135deg, #FFDF00, #D4AF37);
+            border-color: #FFF8DC;
+            color: #5B4000;
+            font-size: 1.3rem;
+            text-shadow: 0 1px 1px rgba(255,255,255,0.8);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6), inset 0 0 10px rgba(255,255,255,0.6);
+        }
+
+        .liker-item.rank-1 .avatar {
+            border-color: var(--gold);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+            animation: pulseGoldAvatar 2s infinite !important;
+        }
+
+        .liker-item.rank-1 .nickname {
+            color: var(--gold);
+            text-shadow: 1px 2px 5px rgba(0, 0, 0, 0.9), 0 0 12px rgba(255, 215, 0, 0.6);
+        }
+
+        .liker-item.rank-2 {
+            z-index: 4;
+        }
+        
+        .liker-item.rank-2 .rank {
+            background: linear-gradient(135deg, #E0E0E0, #9E9E9E);
+            border-color: #FFFFFF;
+            color: #333333;
+            font-size: 1.2rem;
+            text-shadow: 0 1px 1px rgba(255,255,255,0.8);
+            box-shadow: 0 0 10px rgba(192, 192, 192, 0.4), inset 0 0 8px rgba(255,255,255,0.8);
+        }
+        
+        .liker-item.rank-2 .avatar { border-color: #C0C0C0; box-shadow: 0 0 10px rgba(192, 192, 192, 0.2); }
+        .liker-item.rank-2 .nickname { color: #C0C0C0; text-shadow: 1px 2px 5px rgba(0, 0, 0, 0.9), 0 0 12px rgba(192, 192, 192, 0.5); }
+        
+        .liker-item.rank-3 {
+            z-index: 3;
+        }
+        
+        .liker-item.rank-3 .rank {
+            background: linear-gradient(135deg, #CD7F32, #8B4513);
+            border-color: #FFDAB9;
+            color: #FFFFFF;
+            font-size: 1.1rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            box-shadow: 0 0 10px rgba(205, 127, 50, 0.4), inset 0 0 5px rgba(255,255,255,0.4);
+        }
+        
+        .liker-item.rank-3 .avatar { border-color: #CD7F32; box-shadow: 0 0 10px rgba(205, 127, 50, 0.2); }
+        .liker-item.rank-3 .nickname { color: #FFB347; text-shadow: 1px 2px 5px rgba(0, 0, 0, 0.9), 0 0 12px rgba(205, 127, 50, 0.5); }
+
+        .crown {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%) rotate(10deg);
+            font-size: 1.2rem;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+            display: none;
+        }
+
+        .liker-item.rank-1 .crown {
+            display: block;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .epic-takeover {
+            animation: takeoverPop 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+            z-index: 10 !important; 
+        }
+
+        .epic-takeover .crown {
+            animation: crownDrop 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 600;
+            padding: 20px 0;
+            animation: fadeIn 1s ease;
+        }
+
+        @keyframes pulseCoin {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(30px) scale(0.9); }
+            to { opacity: 1; transform: translateX(0) scale(1); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulseAlert {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.02) translateX(2px); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateX(-50%) rotate(10deg) translateY(0); }
+            50% { transform: translateX(-50%) rotate(0deg) translateY(-4px); }
+        }
+
+        @keyframes pulseGoldAvatar {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.4); }
+            50% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4); }
+        }
+
+        @keyframes takeoverPop {
+            0% { transform: scale(1); filter: brightness(1); }
+            15% { transform: scale(1.15); filter: brightness(2) drop-shadow(0 0 30px gold); }
+            30% { transform: scale(1.1) rotate(2deg); filter: brightness(1.5); }
+            50% { transform: scale(1.05) rotate(-1deg); }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+
+        @keyframes crownDrop {
+            0% { transform: translate(-50%, -40px) scale(3) rotate(30deg); opacity: 0; filter: brightness(3); }
+            40% { transform: translate(-50%, 0px) scale(0.9) rotate(-15deg); opacity: 1; filter: brightness(2); }
+            70% { transform: translate(-50%, -5px) scale(1.1) rotate(5deg); }
+            100% { transform: translate(-50%, 0) scale(1) rotate(10deg); filter: brightness(1); }
+        }
+    </style>
+    <script src="./token-bridge.js"></script>
+</head>
+<body>
+    <div class="ranking-container">
+        <div class="liker-list" id="liker-list">
+            <div class="empty-state" id="empty-state" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode') || 'app';
+        
+        const giftersMap = new Map();
+        const listContainer = document.getElementById('liker-list');
+        const emptyState = document.getElementById('empty-state');
+        
+        let currentTopGifterUid = null;
+        let updateQueued = false;
+
+        function getFallbackAvatar(name) {
+            const letter = (name || '?').charAt(0).toUpperCase();
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#333"/><text x="50" y="65" font-size="60" text-anchor="middle" fill="#fff" font-family="sans-serif">${letter}</text></svg>`;
+            return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        }
+
+        function updateList() {
+            const sortedGifters = Array.from(giftersMap.values())
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+
+            if (sortedGifters.length > 0) emptyState.style.display = 'none';
+            else listContainer.style.height = 'auto';
+
+            let currentYPosition = 0;
+
+            sortedGifters.forEach((gifter, index) => {
+                let itemEl = document.getElementById(`user-${gifter.uid}`);
+
+                if (!itemEl) {
+                    itemEl = document.createElement('div');
+                    itemEl.id = `user-${gifter.uid}`;
+                    itemEl.className = 'liker-item';
+                    
+                    itemEl.innerHTML = `
+                        <div class="rank"></div>
+                        <div class="avatar-container">
+                            <div class="crown">👑</div>
+                            <img src="" class="avatar">
+                        </div>
+                        <div class="info">
+                            <div class="nickname"></div>
+                            <div class="likes"><span class="coin-icon">🪙</span> <span class="likes-count"></span></div>
+                            <div class="gap-alert"></div>
+                        </div>
+                    `;
+                    listContainer.appendChild(itemEl);
+                }
+
+                const imgEl = itemEl.querySelector('.avatar');
+                if (imgEl.src !== gifter.avatar) {
+                    imgEl.src = gifter.avatar;
+                    imgEl.onerror = () => { 
+                        imgEl.src = getFallbackAvatar(gifter.nickname);
+                        imgEl.onerror = null;
+                    };
+                }
+                
+                itemEl.querySelector('.nickname').textContent = gifter.nickname;
+                itemEl.querySelector('.likes-count').textContent = gifter.count.toLocaleString();
+                itemEl.querySelector('.rank').textContent = index + 1;
+
+                const gapAlertEl = itemEl.querySelector('.gap-alert');
+                
+                if (index === 1 && sortedGifters[0]) {
+                    const diff = sortedGifters[0].count - gifter.count;
+                    if (diff > 0 && diff <= 1000) { 
+                        gapAlertEl.textContent = `¡A ${diff.toLocaleString()} monedas de robar la corona! 🔥`;
+                        gapAlertEl.style.display = 'block';
+                    } else {
+                        gapAlertEl.style.display = 'none';
+                    }
+                } else {
+                    gapAlertEl.style.display = 'none';
+                }
+
+                if (index === 0) {
+                    if (currentTopGifterUid !== gifter.uid) {
+                        if (currentTopGifterUid !== null) { 
+                            itemEl.classList.remove('epic-takeover');
+                            void itemEl.offsetWidth; 
+                            itemEl.classList.add('epic-takeover');
+                            setTimeout(() => { if (itemEl) itemEl.classList.remove('epic-takeover'); }, 1000);
+                        }
+                        currentTopGifterUid = gifter.uid;
+                    }
+                }
+
+                const baseClasses = `liker-item rank-${index + 1}`;
+                itemEl.className = itemEl.classList.contains('epic-takeover') ? `${baseClasses} epic-takeover` : baseClasses;
+
+                itemEl.style.top = `${currentYPosition}px`;
+                itemEl.style.zIndex = 5 - index;
+                
+                const cardHeight = itemEl.offsetHeight > 0 ? itemEl.offsetHeight : 60;
+                currentYPosition += cardHeight + 4; 
+            });
+
+            if (sortedGifters.length > 0) {
+                listContainer.style.height = `${currentYPosition}px`;
+            }
+
+            const top5Uids = sortedGifters.map(l => l.uid);
+            Array.from(listContainer.children).forEach(child => {
+                if (child.id !== 'empty-state' && !top5Uids.includes(child.id.replace('user-', ''))) {
+                    child.style.opacity = '0';
+                    child.style.transform = 'scale(0.8)';
+                    setTimeout(() => child.remove(), 400); 
+                }
+            });
+        }
+
+        const streamToken = urlParams.get('token') || 'default';
+        const socketHost = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+        const socket = typeof io !== 'undefined' ? io(socketHost, {
+            query: { token: streamToken },
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000
+        }) : {
+            on: function(event, callback) { this[event] = callback; },
+            emit: function(event, data) { console.log('Socket emit:', event, data); }
+        };
+
+        if (typeof io !== 'undefined') {
+            socket.on('connect', () => {
+                console.log('[Top Gifters] Conectado a sala:', streamToken);
+                socket.emit('join-room', streamToken);
+                socket.emit('get_data', streamToken);
+            });
+        }
+
+        socket.on('gift_event', (data) => {
+            if (mode === 'app' || typeof io === 'undefined') {
+                const uid = data.userId || data.uniqueId || (data.user && data.user.userId) || (data.user && data.user.id) || (data.user && data.user.uniqueId) || (data.sender && data.sender.userId) || 'unknown';
+                const nickname = data.nickname || data.uniqueId || (data.user && data.user.nickname) || (data.sender && data.sender.nickname) || 'Viewer';
+                
+                let realAvatarUrl = null;
+                const extractUrl = (obj) => {
+                    if (!obj) return null;
+                    if (obj.url && Array.isArray(obj.url) && obj.url.length > 0) return obj.url[0];
+                    if (typeof obj === 'string') return obj;
+                    return null;
+                };
+
+                if (data.user && data.user.profilePicture) realAvatarUrl = extractUrl(data.user.profilePicture);
+                if (!realAvatarUrl && data.profilePictureUrl) realAvatarUrl = data.profilePictureUrl;
+                if (!realAvatarUrl && data.sender && data.sender.avatar) realAvatarUrl = data.sender.avatar;
+
+                const avatar = realAvatarUrl || getFallbackAvatar(nickname);
+                
+                if (!giftersMap.has(uid)) {
+                    giftersMap.set(uid, {
+                        uid: uid,
+                        nickname: nickname,
+                        avatar: avatar,
+                        count: 0
+                    });
+                } else if (realAvatarUrl) {
+                    giftersMap.get(uid).avatar = realAvatarUrl;
+                }
+                
+                const user = giftersMap.get(uid);
+                user.count += parseInt(data.calculatedCoins || 0, 10);
+                
+                if (!updateQueued) {
+                    updateQueued = true;
+                    requestAnimationFrame(() => {
+                        updateQueued = false;
+                        updateList();
+                    });
+                }
+            }
+        });
+
+        socket.on('sync_gifters', (giftersArray) => {
+            if (mode === 'app' || typeof io === 'undefined') {
+                giftersArray.forEach(gifter => {
+                    giftersMap.set(gifter.uid, gifter);
+                });
+                updateList();
+            }
+        });
+
+        socket.on('reset_like_stats', () => {
+            giftersMap.clear();
+            updateList();
+        });
+
+        if (typeof io !== 'undefined') {
+            socket.emit('get_data', streamToken);
+        }
+
+        // Modo demostración
+        if (typeof io === 'undefined') {
+            const demoUsers = [
+                { userId: 'u1', nickname: 'Alex_Gamer', profilePictureUrl: 'https://i.pravatar.cc/100?img=11' },
+                { userId: 'u2', nickname: 'Maria_Vibes', profilePictureUrl: 'https://i.pravatar.cc/100?img=5' },
+                { userId: 'u3', nickname: 'JohnDoe99', profilePictureUrl: 'https://i.pravatar.cc/100?img=12' },
+                { userId: 'u4', nickname: 'Luna.Estelar', profilePictureUrl: 'https://i.pravatar.cc/100?img=9' }
+            ];
+            setTimeout(() => {
+                demoUsers.forEach(u => socket.gift_event({...u, calculatedCoins: Math.floor(Math.random() * 500) + 50}));
+            }, 500);
+            setInterval(() => {
+                const randomUser = demoUsers[Math.floor(Math.random() * demoUsers.length)];
+                socket.gift_event({ ...randomUser, calculatedCoins: Math.floor(Math.random() * 50) + 1 });
+            }, 1200);
+        }
+    </script>
+</body>
+</html>
