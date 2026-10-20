@@ -4,178 +4,421 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LiveMu - Ahora Suena</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="./token-bridge.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --accent: #c084fc;
-            --bg-glass: rgba(10, 10, 18, 0.85);
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background-color: transparent;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            color: white;
             overflow: hidden;
-            text-shadow: 0 0 8px rgba(0,0,0,0.5);
+            color: white;
         }
 
-        .widget-card {
-            background: var(--bg-glass);
-            backdrop-filter: blur(12px) saturate(160%);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            border-radius: 0.75rem;
-            width: 320px;
-            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-        }
-
-        .hidden-widget {
-            opacity: 0;
-            transform: translateY(15px) scale(0.98);
-        }
-
-        .equalizer { display: flex; align-items: flex-end; gap: 2px; height: 14px; width: 18px; }
-        .bar { background: var(--accent); width: 3px; border-radius: 1px; animation: equalize 1s ease-in-out infinite; }
-        .bar:nth-child(1) { animation-duration: 0.8s; }
-        .bar:nth-child(2) { animation-duration: 1.2s; }
-        .bar:nth-child(3) { animation-duration: 1s; }
-        @keyframes equalize { 0%, 100% { height: 4px; } 50% { height: 14px; } }
-
-        .title-wrapper { overflow: hidden; white-space: nowrap; position: relative; padding-left: 2px; }
-        .has-mask { mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
+        /* ══════════════════════════════════════
+           SHARED UTILITIES
+        ══════════════════════════════════════ */
+        .hidden-widget { opacity: 0 !important; transform: translateY(12px) scale(0.97) !important; pointer-events: none; }
+        .title-wrapper { overflow: hidden; white-space: nowrap; position: relative; }
+        .has-mask { mask-image: linear-gradient(to right, transparent, black 5%, black 92%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 92%, transparent); }
         .scrolling-text { display: inline-block; animation: marquee-scroll linear infinite; }
         @keyframes marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        .track-item { border-left: 2px solid transparent; transition: all 0.2s ease; }
+
+        /* ══════════════════════════════════════
+           THEME: GLASS (original)
+        ══════════════════════════════════════ */
+        body.theme-glass { font-family: 'Plus Jakarta Sans', sans-serif; padding: 20px; }
+        .theme-glass #widget-root {
+            background: rgba(10, 10, 20, 0.85);
+            backdrop-filter: blur(14px) saturate(160%);
+            -webkit-backdrop-filter: blur(14px) saturate(160%);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 12px;
+            width: 320px;
+            padding: 16px;
+            transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.23,1,0.32,1);
+        }
+        .theme-glass .eq { display: flex; align-items: flex-end; gap: 2px; height: 14px; width: 18px; flex-shrink: 0; }
+        .theme-glass .eq .bar { background: #c084fc; width: 3px; border-radius: 1px; animation: eq-anim 1s ease-in-out infinite; }
+        .theme-glass .eq .bar:nth-child(1) { animation-duration: 0.8s; }
+        .theme-glass .eq .bar:nth-child(2) { animation-duration: 1.2s; }
+        .theme-glass .eq .bar:nth-child(3) { animation-duration: 1s; }
+        @keyframes eq-anim { 0%,100%{height:4px} 50%{height:14px} }
+        .theme-glass .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 700; color: #c084fc; margin-bottom: 3px; }
+        .theme-glass .title { font-weight: 700; font-size: 15px; line-height: 1.3; }
+        .theme-glass .artist { font-size: 12px; color: #9ca3af; font-weight: 500; margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .theme-glass .up-next-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .theme-glass .up-next-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 700; color: #c084fc; margin-bottom: 8px; }
+        .theme-glass .up-next-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #e5e7eb; padding: 3px 0; }
+        .theme-glass .up-next-icon { color: #a78bfa; font-size: 11px; flex-shrink: 0; }
+
+        /* ══════════════════════════════════════
+           THEME: NEON
+        ══════════════════════════════════════ */
+        body.theme-neon { font-family: 'Orbitron', monospace; padding: 20px; }
+        .theme-neon #widget-root {
+            background: rgba(0, 0, 10, 0.92);
+            border: 1px solid #00f5d4;
+            border-radius: 4px;
+            padding: 14px 18px;
+            width: 360px;
+            transition: opacity 0.5s, transform 0.5s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,245,212,0.2), inset 0 0 40px rgba(0,0,20,0.5);
+        }
+        .theme-neon #widget-root::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 4px; height: 100%;
+            background: linear-gradient(to bottom, #00f5d4, #7b2ff7);
+            box-shadow: 0 0 10px #00f5d4;
+        }
+        .theme-neon #widget-root::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(to right, #00f5d4, transparent 70%);
+        }
+        .theme-neon .label {
+            font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase;
+            color: #00f5d4; text-shadow: 0 0 8px #00f5d4; margin-bottom: 6px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .theme-neon .label::after { content: ''; flex: 1; height: 1px; background: rgba(0,245,212,0.3); }
+        .theme-neon .eq { display: flex; align-items: flex-end; gap: 2px; height: 12px; flex-shrink: 0; }
+        .theme-neon .eq .bar { background: #00f5d4; width: 2px; border-radius: 1px; box-shadow: 0 0 4px #00f5d4; animation: eq-anim 1s ease-in-out infinite; }
+        .theme-neon .eq .bar:nth-child(1){animation-duration:0.7s} .theme-neon .eq .bar:nth-child(2){animation-duration:1.1s} .theme-neon .eq .bar:nth-child(3){animation-duration:0.9s}
+        .theme-neon .title { font-size: 16px; font-weight: 700; color: #fff; text-shadow: 0 0 12px rgba(255,255,255,0.4); letter-spacing: 0.05em; line-height: 1.2; }
+        .theme-neon .artist { font-size: 10px; color: #7b2ff7; text-shadow: 0 0 8px #7b2ff7; letter-spacing: 0.1em; margin-top: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .theme-neon .up-next-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(0,245,212,0.15); }
+        .theme-neon .up-next-label { font-size: 8px; color: #7b2ff7; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 6px; }
+        .theme-neon .up-next-item { font-size: 10px; color: rgba(255,255,255,0.6); padding: 2px 0; letter-spacing: 0.05em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .theme-neon .up-next-item::before { content: '▸ '; color: #00f5d4; }
+
+        /* ══════════════════════════════════════
+           THEME: VINYL
+        ══════════════════════════════════════ */
+        body.theme-vinyl { font-family: 'Plus Jakarta Sans', sans-serif; padding: 20px; }
+        .theme-vinyl #widget-root {
+            background: rgba(18, 12, 8, 0.92);
+            border-radius: 16px;
+            padding: 16px;
+            width: 310px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border: 1px solid rgba(255,200,100,0.15);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+            transition: opacity 0.6s, transform 0.6s;
+        }
+        .theme-vinyl .vinyl-disc {
+            width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+            background: repeating-radial-gradient(circle at center, #1a1a1a 0px, #111 4px, #1a1a1a 8px, #111 12px, #222 16px, #111 20px, #1a1a1a 24px, #111 28px, #222 32px, #111 36px);
+            animation: vinyl-spin 3s linear infinite;
+            position: relative;
+            box-shadow: 0 0 0 2px #333, 0 4px 20px rgba(0,0,0,0.8);
+        }
+        .theme-vinyl .vinyl-disc::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #f5c842 0%, #c9962a 60%, #a07420 100%);
+            box-shadow: 0 0 6px rgba(245,200,66,0.5);
+        }
+        .theme-vinyl .vinyl-disc::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: #111;
+        }
+        .theme-vinyl.paused .vinyl-disc { animation-play-state: paused; }
+        @keyframes vinyl-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .theme-vinyl .text-section { flex: 1; min-width: 0; }
+        .theme-vinyl .label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.2em; color: #f5c842; font-weight: 700; margin-bottom: 4px; }
+        .theme-vinyl .title { font-size: 14px; font-weight: 800; line-height: 1.2; color: #fff; }
+        .theme-vinyl .artist { font-size: 11px; color: #a08060; font-weight: 600; margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .theme-vinyl .up-next-section { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,200,100,0.1); }
+        .theme-vinyl .up-next-item { font-size: 10px; color: #7a6040; padding: 1px 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .theme-vinyl .up-next-item::before { content: '♫ '; color: #f5c842; }
+
+        /* ══════════════════════════════════════
+           THEME: MINIMAL
+        ══════════════════════════════════════ */
+        body.theme-minimal { font-family: 'Space Mono', monospace; padding: 16px; }
+        .theme-minimal #widget-root {
+            background: rgba(0, 0, 0, 0.78);
+            border-radius: 6px;
+            padding: 12px 18px;
+            width: 380px;
+            border-left: 3px solid #fff;
+            transition: opacity 0.4s, transform 0.4s;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .theme-minimal .eq { display: flex; align-items: flex-end; gap: 2px; height: 16px; flex-shrink: 0; }
+        .theme-minimal .eq .bar { background: #fff; width: 2px; border-radius: 1px; animation: eq-anim 1s ease-in-out infinite; }
+        .theme-minimal .eq .bar:nth-child(1){animation-duration:0.75s} .theme-minimal .eq .bar:nth-child(2){animation-duration:1.1s} .theme-minimal .eq .bar:nth-child(3){animation-duration:0.9s}
+        .theme-minimal .text-section { flex: 1; min-width: 0; }
+        .theme-minimal .label { font-size: 8px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.45); margin-bottom: 2px; }
+        .theme-minimal .title { font-size: 14px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+        .theme-minimal .artist { font-size: 10px; color: rgba(255,255,255,0.55); margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; letter-spacing: 0.05em; }
+        .theme-minimal .up-next-section { display: none; } /* Minimal hides queue */
+
+        /* ══════════════════════════════════════
+           THEME: RETRO
+        ══════════════════════════════════════ */
+        body.theme-retro { font-family: 'Bebas Neue', sans-serif; padding: 20px; }
+        .theme-retro #widget-root {
+            background: linear-gradient(135deg, #1a0a00 0%, #2d1800 50%, #1a0a00 100%);
+            border: 2px solid #ff6b00;
+            border-radius: 8px;
+            padding: 14px 16px;
+            width: 340px;
+            position: relative;
+            overflow: hidden;
+            transition: opacity 0.5s, transform 0.5s;
+            box-shadow: 0 0 25px rgba(255,107,0,0.3), inset 0 0 30px rgba(255,107,0,0.05);
+        }
+        .theme-retro #widget-root::before {
+            content: 'REC ●';
+            position: absolute; top: 8px; right: 10px;
+            font-size: 12px; color: #ff3333;
+            animation: blink-rec 1.2s ease-in-out infinite;
+            letter-spacing: 0.1em;
+        }
+        @keyframes blink-rec { 0%,100%{opacity:1} 50%{opacity:0} }
+        .theme-retro .scan-line {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+            pointer-events: none;
+        }
+        .theme-retro .label { font-size: 11px; letter-spacing: 0.3em; color: #ff6b00; margin-bottom: 4px; }
+        .theme-retro .eq { display: flex; align-items: flex-end; gap: 3px; height: 18px; flex-shrink: 0; }
+        .theme-retro .eq .bar { background: linear-gradient(to top, #ff6b00, #ffcc00); width: 4px; border-radius: 1px 1px 0 0; animation: eq-anim 1s ease-in-out infinite; }
+        .theme-retro .eq .bar:nth-child(1){animation-duration:0.65s} .theme-retro .eq .bar:nth-child(2){animation-duration:1.0s} .theme-retro .eq .bar:nth-child(3){animation-duration:0.85s}
+        .theme-retro .title { font-size: 26px; line-height: 1; color: #fff; letter-spacing: 0.05em; text-shadow: 0 0 10px rgba(255,107,0,0.5); }
+        .theme-retro .artist { font-family: 'Space Mono', monospace; font-size: 11px; color: #ff9a44; margin-top: 4px; letter-spacing: 0.12em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .theme-retro .up-next-section { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,107,0,0.25); }
+        .theme-retro .up-next-label { font-size: 10px; letter-spacing: 0.3em; color: #ff6b00; margin-bottom: 4px; }
+        .theme-retro .up-next-item { font-family: 'Space Mono', monospace; font-size: 9px; color: rgba(255,150,60,0.6); padding: 1px 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .theme-retro .up-next-item::before { content: '▶ '; color: #ff6b00; }
     </style>
 </head>
-<body class="p-6">
+<body>
 
-    <div id="widget-container" class="widget-card hidden-widget p-4">
-        <div class="flex items-center gap-3 mb-1">
-            <div class="equalizer flex-shrink-0" id="equalizer">
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            </div>
-            <div class="min-w-0 flex-grow">
-                <p class="text-[10px] uppercase font-bold text-violet-300 tracking-widest mb-0.5">Ahora Suena</p>
-                <div id="title-container" class="title-wrapper h-7">
-                    <p id="widget-title" class="font-bold text-base leading-tight">Esperando canción...</p>
+<div id="widget-root" class="hidden-widget">
+    <!-- Content injected by JS based on theme -->
+</div>
+
+<script>
+    const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const urlParams = new URLSearchParams(window.location.search);
+    const streamToken = urlParams.get('token') || 'default';
+    const THEME = urlParams.get('theme') || localStorage.getItem('musica_theme') || 'glass';
+
+    // Apply theme class
+    document.body.classList.add('theme-' + THEME);
+
+    const isObs = !!(window.obsStudio || (window.navigator && window.navigator.userAgent && window.navigator.userAgent.includes('OBS')));
+    const root = document.getElementById('widget-root');
+
+    // ── Build inner HTML skeleton per theme ──────────────────────────────────
+    function buildSkeleton() {
+        if (THEME === 'glass') {
+            root.innerHTML = `
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+                    <div class="eq"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+                    <div style="min-width:0;flex:1;">
+                        <div class="label">Ahora Suena</div>
+                        <div class="title-wrapper" id="title-container" style="height:22px;">
+                            <span id="widget-title" class="title">Esperando canción...</span>
+                        </div>
+                        <div id="widget-artist" class="artist"></div>
+                    </div>
                 </div>
-                <p id="widget-artist" class="text-xs text-gray-400 font-medium truncate mt-0.5 empty:hidden"></p>
-            </div>
-        </div>
-        <div id="up-next-section" class="mt-3 pt-3 border-t border-white/10 hidden">
-            <h2 class="text-[10px] uppercase font-bold text-violet-300 tracking-widest mb-2">A Continuación</h2>
-            <ul id="widget-up-next-list" class="space-y-1.5"></ul>
-        </div>
-    </div>
+                <div id="up-next-section" class="up-next-section" style="display:none;">
+                    <div class="up-next-label">A Continuación</div>
+                    <ul id="widget-up-next-list"></ul>
+                </div>`;
+        } else if (THEME === 'neon') {
+            root.innerHTML = `
+                <div class="label">
+                    <div class="eq" style="margin-right:4px;"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+                    Ahora Suena
+                </div>
+                <div class="title-wrapper" id="title-container" style="height:22px;">
+                    <span id="widget-title" class="title">Esperando señal...</span>
+                </div>
+                <div id="widget-artist" class="artist"></div>
+                <div id="up-next-section" class="up-next-section" style="display:none;">
+                    <div class="up-next-label">Cola</div>
+                    <div id="widget-up-next-list"></div>
+                </div>`;
+        } else if (THEME === 'vinyl') {
+            root.innerHTML = `
+                <div class="vinyl-disc" id="vinyl-disc"></div>
+                <div class="text-section">
+                    <div class="label">♪ Ahora Suena</div>
+                    <div class="title-wrapper" id="title-container" style="height:20px;">
+                        <span id="widget-title" class="title">Esperando canción...</span>
+                    </div>
+                    <div id="widget-artist" class="artist"></div>
+                    <div id="up-next-section" class="up-next-section" style="display:none;">
+                        <div id="widget-up-next-list"></div>
+                    </div>
+                </div>`;
+        } else if (THEME === 'minimal') {
+            root.innerHTML = `
+                <div class="eq"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+                <div class="text-section">
+                    <div class="label">Now Playing</div>
+                    <div class="title-wrapper" id="title-container" style="height:20px;">
+                        <span id="widget-title" class="title">—</span>
+                    </div>
+                    <div id="widget-artist" class="artist"></div>
+                </div>`;
+        } else if (THEME === 'retro') {
+            root.innerHTML = `
+                <div class="scan-line"></div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <div class="eq"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+                    <div class="label">▶ On Air</div>
+                </div>
+                <div class="title-wrapper" id="title-container" style="height:32px;">
+                    <span id="widget-title" class="title">ESPERANDO...</span>
+                </div>
+                <div id="widget-artist" class="artist"></div>
+                <div id="up-next-section" class="up-next-section" style="display:none;">
+                    <div class="up-next-label">Up Next</div>
+                    <div id="widget-up-next-list"></div>
+                </div>`;
+        }
+    }
+    buildSkeleton();
 
-    <script>
-        const widgetContainer = document.getElementById('widget-container');
-        const widgetTitle = document.getElementById('widget-title');
-        const widgetArtist = document.getElementById('widget-artist');
-        const titleContainer = document.getElementById('title-container');
-        const upNextSection = document.getElementById('up-next-section');
-        const upNextList = document.getElementById('widget-up-next-list');
-        
-        // Detectar si se está ejecutando dentro de OBS Studio Browser Source
-        const isObs = !!(window.obsStudio || (window.navigator && window.navigator.userAgent && window.navigator.userAgent.includes('OBS')));
+    // ── Refs (after skeleton) ────────────────────────────────────────────────
+    const getEl = (id) => document.getElementById(id);
 
-        function updateWidget(data) {
-            console.log('[Música] updateWidget recibido:', data);
-            if (!data) {
-                if (isObs) {
-                    widgetContainer.classList.add('hidden-widget');
-                } else {
-                    widgetContainer.classList.remove('hidden-widget');
-                    widgetTitle.textContent = 'Sin música en reproducción';
-                    widgetArtist.textContent = 'Reproduce una canción en LiveMu';
-                    upNextSection.classList.add('hidden');
-                }
-                return;
+    // ── Scroll animation logic ───────────────────────────────────────────────
+    function applyScrollAnimation(title) {
+        const container = getEl('title-container');
+        const titleEl = getEl('widget-title');
+        if (!container || !titleEl) return;
+        // Reset
+        titleEl.classList.remove('scrolling-text');
+        container.classList.remove('has-mask');
+        titleEl.textContent = title;
+        titleEl.style.animationDuration = '';
+
+        setTimeout(() => {
+            if (titleEl.scrollWidth > container.clientWidth) {
+                titleEl.innerHTML = `${escHtml(title)} <span style="margin:0 24px;">&nbsp;</span> ${escHtml(title)} <span style="margin:0 24px;">&nbsp;</span>`;
+                const duration = (titleEl.scrollWidth / 2) / 40;
+                titleEl.style.animationDuration = `${duration}s`;
+                titleEl.classList.add('scrolling-text');
+                container.classList.add('has-mask');
             }
+        }, 60);
+    }
 
-            const current = data.currentSong || (data.title ? data : null);
-            if (!current || (!current.title && !current.song)) {
-                if (isObs) {
-                    widgetContainer.classList.add('hidden-widget');
-                } else {
-                    widgetContainer.classList.remove('hidden-widget');
-                    widgetTitle.textContent = 'Sin música en reproducción';
-                    widgetArtist.textContent = 'Reproduce una canción en LiveMu';
-                    upNextSection.classList.add('hidden');
-                }
-                return;
+    // ── Main update function ─────────────────────────────────────────────────
+    function updateWidget(data) {
+        const artistEl = getEl('widget-artist');
+        const upNextSection = getEl('up-next-section');
+        const upNextList = getEl('widget-up-next-list');
+
+        const current = data ? (data.currentSong || (data.title ? data : null)) : null;
+
+        if (!current || (!current.title && !current.song)) {
+            if (isObs) {
+                root.classList.add('hidden-widget');
+            } else {
+                root.classList.remove('hidden-widget');
+                applyScrollAnimation('Sin música en reproducción');
+                if (artistEl) artistEl.textContent = 'Reproduce una canción en LiveMu';
+                if (upNextSection) upNextSection.style.display = 'none';
+                if (THEME === 'vinyl') document.body.classList.add('paused');
             }
+            return;
+        }
 
-            widgetContainer.classList.remove('hidden-widget');
-            const title = current.title || current.song || '';
-            const author = current.author || current.artist || '';
-            widgetArtist.textContent = author;
-            widgetTitle.textContent = title;
+        root.classList.remove('hidden-widget');
+        if (THEME === 'vinyl') document.body.classList.remove('paused');
 
-            setTimeout(() => {
-                const isOverflowing = widgetTitle.scrollWidth > titleContainer.clientWidth;
-                widgetTitle.classList.toggle('scrolling-text', isOverflowing);
-                titleContainer.classList.toggle('has-mask', isOverflowing);
-                if (isOverflowing) {
-                    widgetTitle.innerHTML = `${title} <span class="mx-6"></span> ${title} <span class="mx-6"></span>`;
-                    const duration = (widgetTitle.scrollWidth / 2) / 40;
-                    widgetTitle.style.animationDuration = `${duration}s`;
-                }
-            }, 50);
+        const title = current.title || current.song || '';
+        const author = current.author || current.artist || '';
 
-            const upNext = data.queue || data.upNext || [];
+        if (artistEl) artistEl.textContent = author;
+        applyScrollAnimation(title);
+
+        const upNext = data.queue || data.upNext || [];
+        if (upNextSection && upNextList) {
             if (upNext.length > 0) {
-                upNextList.innerHTML = upNext.slice(0, 2).map(song => `
-                    <li class="track-item flex items-center text-sm">
-                        <svg class="w-3 h-3 text-violet-400 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.28-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-                        <span class="text-gray-200 truncate font-medium">${song.title || song.song}</span>
-                    </li>`).join('');
-                upNextSection.classList.remove('hidden');
+                if (THEME === 'glass') {
+                    upNextList.innerHTML = upNext.slice(0, 2).map(s => `
+                        <li class="up-next-item">
+                            <span class="up-next-icon">♫</span>
+                            <span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${escHtml(s.title || s.song || '')}</span>
+                        </li>`).join('');
+                } else {
+                    upNextList.innerHTML = upNext.slice(0, 2).map(s => `
+                        <div class="up-next-item">${escHtml(s.title || s.song || '')}</div>`).join('');
+                }
+                upNextSection.style.display = '';
             } else {
-                upNextSection.classList.add('hidden');
+                upNextSection.style.display = 'none';
             }
         }
+    }
 
-        // Si se abre en navegador web regular (para pruebas directas), mostrar estado inicial visible
+    // ── Initial state ─────────────────────────────────────────────────────────
+    if (!isObs) {
+        root.classList.remove('hidden-widget');
+        applyScrollAnimation('Conectando con LiveMu...');
+        const artistEl = getEl('widget-artist');
+        if (artistEl) artistEl.textContent = 'Asegúrate de que la app esté abierta';
+    }
+
+    // ── Socket ────────────────────────────────────────────────────────────────
+    const socket = io({
+        query: { token: streamToken },
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000
+    });
+
+    socket.on('connect', () => {
         if (!isObs) {
-            widgetContainer.classList.remove('hidden-widget');
-            widgetTitle.textContent = 'Conectando con LiveMu...';
-            widgetArtist.textContent = 'Asegúrate de que LiveMu esté abierto';
+            applyScrollAnimation('Esperando música...');
+            const artistEl = getEl('widget-artist');
+            if (artistEl) artistEl.textContent = 'Pon una canción en la app para verla aquí';
         }
+        socket.emit('get_music', streamToken);
+    });
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const streamToken = urlParams.get('token') || 'default';
-        const socket = io({
-            query: { token: streamToken },
-            reconnection: true,
-            reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000
-        });
+    socket.on('music-update', updateWidget);
 
-        socket.on('connect', () => {
-            console.log('[Música] Conectado exitosamente');
-            if (!isObs) {
-                widgetTitle.textContent = 'Esperando música...';
-                widgetArtist.textContent = 'Pon una canción en la app para verla aquí';
-            }
-            socket.emit('get_music', streamToken);
-        });
-
-        socket.on('music-update', updateWidget);
-        socket.on('disconnect', () => {
-            console.log('[Música] Desconectado');
-            if (!isObs) {
-                widgetContainer.classList.remove('hidden-widget');
-                widgetTitle.textContent = 'Desconectado';
-                widgetArtist.textContent = 'Reconectando con LiveMu...';
-            } else {
-                updateWidget(null);
-            }
-        });
-    </script>
+    socket.on('disconnect', () => {
+        if (!isObs) {
+            root.classList.remove('hidden-widget');
+            applyScrollAnimation('Desconectado');
+            const artistEl = getEl('widget-artist');
+            if (artistEl) artistEl.textContent = 'Reconectando...';
+        } else {
+            updateWidget(null);
+        }
+    });
+</script>
 </body>
 </html>

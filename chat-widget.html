@@ -15,6 +15,25 @@
             --anim-duration: 0.3s;
             --text-color: #ffffff;
             --emote-size: 28px;
+            --redeem-title: #00f5d4;
+            --redeem-cost: #00f5d4;
+            --redeem-subtle: #cbd5e1;
+        }
+
+        [data-theme="light"] {
+            --redeem-title: #0d9488;
+            --redeem-cost: #0d9488;
+            --redeem-subtle: #64748b;
+        }
+
+        .chat-header-info {
+            font-size: 0.82em;
+            color: var(--redeem-subtle);
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            line-height: 1.2;
         }
 
         body {
@@ -22,7 +41,6 @@
             padding: 0;
             background-color: transparent;
             font-family: 'Open Sans', Arial, sans-serif;
-            /* ¡LÍNEA ELIMINADA! Quitar -webkit-font-smoothing hace que la letra recupere su blanco puro y no se vea gris/opaca */
             overflow: hidden;
             color: var(--text-color);
             height: 100vh;
@@ -42,8 +60,6 @@
             box-sizing: border-box;
             overflow: hidden;
             font-size: var(--font-size);
-            
-            /* Sombra tipo "Large" del original: Ligeramente desplazada (1px 1px) y profunda */
             filter: drop-shadow(1px 1px 2px #000) drop-shadow(1px 2px 6px rgba(0, 0, 0, 0.589));
         }
 
@@ -100,7 +116,8 @@
         }
 
         .username {
-            font-weight: 800; /* Extra bold */
+            font-weight: 800;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
         }
 
         .colon {
@@ -110,7 +127,7 @@
         }
 
         .message-content {
-            font-weight: 800; /* Subido a 800 para que se vea igual de grueso y brillante que el original */
+            font-weight: 800;
             color: #ffffff;
         }
 
@@ -125,6 +142,15 @@
             vertical-align: middle; 
             display: inline-block;
             margin-top: -4px;
+        }
+
+        /* Stickers de TikTok enviados solos (WebcastEmoteChatMessage / mensaje sin texto) */
+        .emote.tiktok-sticker {
+            height: calc(var(--emote-size) * 2);
+            max-width: calc(var(--emote-size) * 4);
+            margin-top: 2px;
+            margin-right: 2px;
+            object-fit: contain;
         }
 
         .chat-gif-wrapper {
@@ -179,9 +205,6 @@
             display: none;
         }
 
-        .zerowidth {
-        }
-        
         ::-webkit-scrollbar { display: none; }
     </style>
     <script src="./token-bridge.js"></script>
@@ -240,18 +263,110 @@
         if(textColor) document.documentElement.style.setProperty('--text-color', textColor);
 
         const USER_COLORS = [
-            '#FF0000', '#0000FF', '#008000', '#B22222', '#FF7F50',
-            '#9ACD32', '#FF4500', '#2E8B57', '#DAA520', '#D2691E',
-            '#5F9EA0', '#1E90FF', '#FF69B4', '#8A2BE2', '#00FF7F'
+            '#e11d48', '#ea580c', '#d97706', '#ca8a04', '#65a30d',
+            '#16a34a', '#059669', '#0d9488', '#0891b2', '#0284c7',
+            '#2563eb', '#4f46e5', '#7c3aed', '#9333ea', '#c026d3',
+            '#db2777', '#f43f5e', '#f97316', '#14b8a6', '#6366f1'
         ];
 
         function getUserColor(username) {
             let hash = 0;
-            for (let i = 0; i < username.length; i++) {
-                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+            const str = String(username || 'user');
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
             }
-            const index = Math.abs(hash % USER_COLORS.length);
-            return USER_COLORS[index];
+            return USER_COLORS[Math.abs(hash % USER_COLORS.length)];
+        }
+
+        function parseColorToRgb(colorStr) {
+            if (!colorStr) return { r: 128, g: 128, b: 128 };
+            colorStr = String(colorStr).trim();
+            if (colorStr.startsWith('#')) {
+                let hex = colorStr.slice(1);
+                if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+                if (hex.length === 6) {
+                    const num = parseInt(hex, 16);
+                    if (!isNaN(num)) return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+                }
+            }
+            const match = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+            if (match) {
+                return { r: parseInt(match[1], 10), g: parseInt(match[2], 10), b: parseInt(match[3], 10) };
+            }
+            return { r: 128, g: 128, b: 128 };
+        }
+
+        function rgbToHsl(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+            if (max === min) {
+                h = s = 0;
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                    case g: h = ((b - r) / d + 2) / 6; break;
+                    case b: h = ((r - g) / d + 4) / 6; break;
+                }
+            }
+            return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+        }
+
+        function hslToHex(h, s, l) {
+            h = (h % 360 + 360) % 360;
+            s = Math.max(0, Math.min(100, s)) / 100;
+            l = Math.max(0, Math.min(100, l)) / 100;
+            const c = (1 - Math.abs(2 * l - 1)) * s;
+            const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+            const m = l - c / 2;
+            let r = 0, g = 0, b = 0;
+            if (0 <= h && h < 60) { r = c; g = x; b = 0; }
+            else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
+            else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+            else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+            else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+            else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
+            const toHex = (n) => {
+                const hex = Math.round((n + m) * 255).toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            };
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        }
+
+        function getAccessibleUserColor(rawColor, isLightMode) {
+            if (!rawColor) return isLightMode ? '#0284c7' : '#38bdf8';
+            const { r, g, b } = parseColorToRgb(rawColor);
+            let { h, s, l } = rgbToHsl(r, g, b);
+
+            if (s < 12) {
+                return isLightMode ? '#1e293b' : '#f1f5f9';
+            }
+
+            if (isLightMode) {
+                s = Math.max(70, Math.min(95, s));
+                if (h >= 35 && h <= 185) {
+                    l = Math.max(24, Math.min(32, l));
+                } else if ((h >= 0 && h < 35) || (h > 300 && h <= 360)) {
+                    l = Math.max(30, Math.min(38, l));
+                } else {
+                    l = Math.max(34, Math.min(44, l));
+                }
+            } else {
+                if (h >= 200 && h <= 285) {
+                    l = Math.max(64, Math.min(75, l));
+                    s = Math.max(75, Math.min(95, s));
+                } else if (h >= 40 && h <= 185) {
+                    l = Math.max(48, Math.min(60, l));
+                    s = Math.min(85, s);
+                } else {
+                    l = Math.max(58, Math.min(70, l));
+                    s = Math.max(75, Math.min(95, s));
+                }
+            }
+
+            return hslToHex(h, s, l);
         }
 
         // Conexión dinámica a Render o localhost con soporte para tokens de sala
@@ -350,7 +465,7 @@
                 .replace(/'/g, '&#039;');
         }
 
-        function addMessage(platform, user, message, badges = [], color = '#ffffff', twitchEmotes = null, gifUrl = null, gifs = []) {
+        function addMessage(platform, user, message, badges = [], color = '#ffffff', twitchEmotes = null, gifUrl = null, gifs = [], isHtml = false, headerHtml = null) {
             if (isUserBlocked(user)) return;
             const msgDiv = document.createElement('div');
             msgDiv.className = 'chat-line';
@@ -363,87 +478,93 @@
             }
 
             const twitchEmoteMap = {};
-            if (twitchEmotes) {
+            if (twitchEmotes && typeof twitchEmotes === 'object') {
                 Object.keys(twitchEmotes).forEach(id => {
                     const ranges = twitchEmotes[id];
-                    if (ranges && ranges.length > 0) {
+                    if (ranges && ranges.length > 0 && typeof ranges[0] === 'string') {
                         const [start, end] = ranges[0].split('-').map(Number);
-                        const code = message.substring(start, end + 1);
-                        twitchEmoteMap[code] = `https://static-cdn.jtvnw.net/emoticons/v2/${id}/default/dark/2.0`;
-                    }
-                });
-            }
-
-            // Detección de GIFs de Twitch / ChatIS
-            const gifMatch = message.match(/\[(.*?) GIF by (.*?)\]/i) || message.match(/\[(.*?) GIF\]/i);
-
-            let processedMessage = escapeHtml(message);
-            let isGifOnly = false;
-
-            // Renderizado de GIFs (igual que ChatIS)
-            if (gifs && gifs.length > 0) {
-                const sortedGifs = [...gifs].sort((a, b) => (b.start || 0) - (a.start || 0));
-                for (const gif of sortedGifs) {
-                    if (gif.url) {
-                        const img = `<img class="gif chat-gif" src="${gif.url}" data-id="${gif.id || ''}" loading="lazy" />`;
-                        if (processedMessage.match(/\[(.*?) GIF by (.*?)\]/i)) {
-                            processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/i, img);
-                            isGifOnly = true;
-                        } else if (processedMessage.match(/\[(.*?) GIF\]/i)) {
-                            processedMessage = processedMessage.replace(/\[(.*?) GIF\]/i, img);
-                            isGifOnly = true;
-                        } else if (!isNaN(gif.start) && !isNaN(gif.end) && gif.start >= 0 && gif.end >= gif.start) {
-                            processedMessage = processedMessage.slice(0, gif.start) + img + processedMessage.slice(gif.end + 1);
-                        } else {
-                            processedMessage += ' ' + img;
+                        if (!isNaN(start) && !isNaN(end)) {
+                            const code = message.substring(start, end + 1);
+                            twitchEmoteMap[code] = `https://static-cdn.jtvnw.net/emoticons/v2/${id}/default/dark/2.0`;
                         }
                     }
-                }
-            } else if (gifUrl) {
-                const img = `<img class="gif chat-gif" src="${gifUrl}" loading="lazy" />`;
-                if (processedMessage.match(/\[(.*?) GIF by (.*?)\]/i)) {
-                    processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/gi, img);
-                    isGifOnly = true;
-                } else if (processedMessage.match(/\[(.*?) GIF\]/i)) {
-                    processedMessage = processedMessage.replace(/\[(.*?) GIF\]/gi, img);
-                    isGifOnly = true;
-                } else {
-                    processedMessage += ' ' + img;
-                }
+                });
             }
 
-            // Si no es un mensaje puramente de GIF, parsear emotes de Twitch y 7TV
-            if (!isGifOnly) {
-                const words = processedMessage.split(' ');
-                processedMessage = words.map(word => {
-                    if (word.startsWith('<img') || word.includes('chat-gif')) return word;
-                    if (twitchEmoteMap[word]) return `<span class="emote-container"><img src="${twitchEmoteMap[word]}" class="emote" alt="${word}"></span>`;
-                    if (emotes[word]) return `<span class="emote-container"><img src="${emotes[word]}" class="emote" alt="${word}"></span>`;
-                    return word;
-                }).join(' ');
+            let processedMessage = isHtml ? message : escapeHtml(message);
+            let isGifOnly = false;
 
-                // Parsear emotes de Kick: formato nativo [emote:ID:NAME] o [emote:ID]
-                processedMessage = processedMessage.replace(/\[emote:(\d+)(?::([^\]]+))?\]/g, (match, id, name) => {
-                    const emoteName = escapeHtml(name || `emote-${id}`);
-                    return `<span class="emote-container"><img src="https://files.kick.com/emotes/${encodeURIComponent(id)}/fullsize" class="emote" alt="${emoteName}" title="${emoteName}"></span>`;
-                });
-                processedMessage = processedMessage.replace(/\[kick_emote:([^\]]+)\]/g, (match, url) => {
-                    const cleanUrl = url.trim();
-                    if (/^https?:\/\/[^\s"']+$/i.test(cleanUrl)) {
-                        return `<span class="emote-container"><img src="${escapeHtml(cleanUrl)}" class="emote"></span>`;
+            if (!isHtml) {
+                // Renderizado de GIFs (igual que ChatIS)
+                if (gifs && gifs.length > 0) {
+                    const sortedGifs = [...gifs].sort((a, b) => (b.start || 0) - (a.start || 0));
+                    for (const gif of sortedGifs) {
+                        if (gif.url) {
+                            const img = `<img class="gif chat-gif" src="${gif.url}" data-id="${gif.id || ''}" loading="lazy" />`;
+                            if (processedMessage.match(/\[(.*?) GIF by (.*?)\]/i)) {
+                                processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/i, img);
+                                isGifOnly = true;
+                            } else if (processedMessage.match(/\[(.*?) GIF\]/i)) {
+                                processedMessage = processedMessage.replace(/\[(.*?) GIF\]/i, img);
+                                isGifOnly = true;
+                            } else if (!isNaN(gif.start) && !isNaN(gif.end) && gif.start >= 0 && gif.end >= gif.start) {
+                                processedMessage = processedMessage.slice(0, gif.start) + img + processedMessage.slice(gif.end + 1);
+                            } else {
+                                processedMessage += ' ' + img;
+                            }
+                        }
                     }
-                    return '';
-                });
+                } else if (gifUrl) {
+                    const img = `<img class="gif chat-gif" src="${gifUrl}" loading="lazy" />`;
+                    if (processedMessage.match(/\[(.*?) GIF by (.*?)\]/i)) {
+                        processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/gi, img);
+                        isGifOnly = true;
+                    } else if (processedMessage.match(/\[(.*?) GIF\]/i)) {
+                        processedMessage = processedMessage.replace(/\[(.*?) GIF\]/gi, img);
+                        isGifOnly = true;
+                    } else {
+                        processedMessage += ' ' + img;
+                    }
+                }
+
+                // Si no es un mensaje puramente de GIF, parsear emotes de Twitch y 7TV
+                if (!isGifOnly) {
+                    const words = processedMessage.split(' ');
+                    processedMessage = words.map(word => {
+                        if (word.startsWith('<img') || word.includes('chat-gif')) return word;
+                        if (twitchEmoteMap[word]) return `<span class="emote-container"><img src="${twitchEmoteMap[word]}" class="emote" alt="${word}"></span>`;
+                        if (emotes[word]) return `<span class="emote-container"><img src="${emotes[word]}" class="emote" alt="${word}"></span>`;
+                        return word;
+                    }).join(' ');
+
+                    // Parsear emotes de Kick: formato nativo [emote:ID:NAME] o [emote:ID]
+                    processedMessage = processedMessage.replace(/\[emote:(\d+)(?::([^\]]+))?\]/g, (match, id, name) => {
+                        const emoteName = escapeHtml(name || `emote-${id}`);
+                        return `<span class="emote-container"><img src="https://files.kick.com/emotes/${encodeURIComponent(id)}/fullsize" class="emote" alt="${emoteName}" title="${emoteName}"></span>`;
+                    });
+                    processedMessage = processedMessage.replace(/\[kick_emote:([^\]]+)\]/g, (match, url) => {
+                        const cleanUrl = url.trim();
+                        if (/^https?:\/\/[^\s"']+$/i.test(cleanUrl)) {
+                            return `<span class="emote-container"><img src="${escapeHtml(cleanUrl)}" class="emote"></span>`;
+                        }
+                        return '';
+                    });
+                }
             }
 
             const badgesHtml = badges.filter(b => typeof b === 'string' && /^https?:\/\//i.test(b)).map(b => `<img src="${escapeHtml(b)}" class="badge">`).join('');
             const safeUser = escapeHtml(user);
+            const themeParam = (urlParams.get('theme') || '').toLowerCase();
+            const isLightMode = themeParam === 'light';
+            const finalColor = getAccessibleUserColor(color, isLightMode);
+            const isActionText = isHtml && typeof processedMessage === 'string' && processedMessage.includes('redeem-action-text');
 
             msgDiv.innerHTML = `
-                ${platformIcon}
+                ${headerHtml ? `<div class="chat-header-info">${headerHtml}</div>` : ''}
                 <div class="message-body">
+                    ${platformIcon}
                     <span class="badges">${badgesHtml}</span>
-                    <span class="username" style="color: ${color}">${safeUser}</span><span class="colon">:</span> <span class="message-content">${processedMessage}</span>
+                    <span class="username" style="color: ${finalColor}">${safeUser}</span>${processedMessage ? (isActionText ? ' ' : `<span class="colon">:</span> `) : ''}<span class="message-content">${processedMessage}</span>
                 </div>
             `;
 
@@ -464,6 +585,376 @@
             }
         }
 
+        // --- MANEJO DE REDEEMS Y CANJES DE TWITCH ---
+        const recentRedeems = new Map();
+        const knownRewardTitles = new Map();
+        let twitchChannelPointsIcon = null;
+
+        async function fetchChannelPointsIcon(channelName) {
+            if (!channelName || twitchChannelPointsIcon) return;
+            try {
+                const gqlQueries = [
+                    `query { communityPointsSettings(channelLogin: "${channelName}") { name image { url url2x } } }`,
+                    `query { user(login: "${channelName}") { channel { communityPointsSettings { name image { url url2x } } } } }`,
+                    `query { channel(name: "${channelName}") { communityPointsSettings { name image { url url2x } } } }`
+                ];
+                for (const query of gqlQueries) {
+                    try {
+                        const res = await fetch('https://gql.twitch.tv/gql', {
+                            method: 'POST',
+                            headers: {
+                                'Client-Id': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ query })
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            const img = data?.data?.communityPointsSettings?.image?.url2x
+                                || data?.data?.communityPointsSettings?.image?.url
+                                || data?.data?.user?.channel?.communityPointsSettings?.image?.url2x
+                                || data?.data?.user?.channel?.communityPointsSettings?.image?.url
+                                || data?.data?.channel?.communityPointsSettings?.image?.url2x
+                                || data?.data?.channel?.communityPointsSettings?.image?.url;
+                            if (img) {
+                                twitchChannelPointsIcon = img;
+                                document.querySelectorAll('.redeem-cost-icon').forEach(imgEl => {
+                                    imgEl.src = img;
+                                    imgEl.style.display = 'inline-block';
+                                });
+                                return;
+                            }
+                        }
+                    } catch (e) { }
+                }
+            } catch (err) { }
+        }
+
+        function renderTwitchRedeem(d) {
+            try {
+                if (!d) return;
+                const username = d.user || d.username || d.uniqueId || d.nickname || (d.sender && d.sender.username) || 'Usuario';
+                const comment = (d.message || d.comment || '').trim();
+                const tags = d.tags || {};
+                const rewardId = d.rewardId || tags['custom-reward-id'] || tags['reward-id'] || '';
+
+                let rewardTitle = (d.rewardTitle || tags['reward-title'] || tags['custom-reward-title'] || tags['msg-param-reward-title'] || '').trim();
+                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rewardTitle);
+                if (isUuid || rewardTitle === 'Canje de puntos') {
+                    rewardTitle = '';
+                }
+
+                if (rewardId && rewardTitle) {
+                    knownRewardTitles.set(rewardId, rewardTitle);
+                } else if (!rewardTitle && rewardId && knownRewardTitles.has(rewardId)) {
+                    rewardTitle = knownRewardTitles.get(rewardId);
+                }
+
+                const displayTitle = rewardTitle || 'Recompensa';
+                const cost = d.rewardCost || tags['reward-cost'] || '';
+
+                const pointImgUrl = d.rewardImage || d.reward_image || (d.reward && (d.reward.image || d.reward.default_image)) || twitchChannelPointsIcon;
+                if (pointImgUrl && !twitchChannelPointsIcon) {
+                    twitchChannelPointsIcon = pointImgUrl;
+                }
+
+                const pointIconHtml = pointImgUrl
+                    ? `<img src="${escapeHtml(pointImgUrl)}" class="redeem-cost-icon" alt="pts" style="width: 1.15em; height: 1.15em; vertical-align: -0.2em; margin: 0 2px 0 4px; object-fit: contain; display: inline-block;">`
+                    : `<img class="redeem-cost-icon" alt="pts" style="width: 1.15em; height: 1.15em; vertical-align: -0.2em; margin: 0 2px 0 4px; object-fit: contain; display: none;">`;
+
+                let badgeUrls = [];
+                if (d.badges && twitchBadgesMap) {
+                    Object.keys(d.badges).forEach(key => {
+                        if (twitchBadgesMap[key] && twitchBadgesMap[key][d.badges[key]]) badgeUrls.push(twitchBadgesMap[key][d.badges[key]]);
+                    });
+                }
+
+                const userKey = username.toLowerCase().trim();
+                const commentKey = comment.slice(0, 30).toLowerCase();
+                const dedupeKey = `redeem:${userKey}:${commentKey}`;
+                const now = Date.now();
+                const existing = recentRedeems.get(dedupeKey);
+
+                if (existing && (now - existing.time < 5000)) {
+                    return; // Ya dibujado hace menos de 5 segundos
+                }
+
+                recentRedeems.set(dedupeKey, { time: now });
+                if (recentRedeems.size > 50) {
+                    const firstKey = recentRedeems.keys().next().value;
+                    recentRedeems.delete(firstKey);
+                }
+
+                if (comment) {
+                    const headerHtml = `<span>Canjeado <strong class="redeem-title-text" style="color: var(--redeem-title); font-weight: 700;">${escapeHtml(displayTitle)}</strong></span><span class="redeem-cost-text" style="color: var(--redeem-cost); font-weight: bold;">${cost ? `${pointIconHtml}${cost}` : ''}</span>`;
+                    addMessage('twitch', username, comment, badgeUrls, d.color || '#9146FF', d.emotes, null, d.gifs || [], false, headerHtml);
+                } else {
+                    const actionHtml = `<span class="redeem-action-text" style="color: var(--redeem-subtle); font-weight: normal;">ha canjeado <strong class="redeem-title-text" style="color: var(--redeem-title); font-weight: 700;">${escapeHtml(displayTitle)}</strong></span> <span class="redeem-cost-text" style="color: var(--redeem-cost); font-weight: bold;">${cost ? `${pointIconHtml}${cost}` : ''}</span>`;
+                    addMessage('twitch', username, actionHtml, badgeUrls, d.color || '#9146FF', null, null, [], true, null);
+                }
+            } catch (err) {
+                console.error('[ChatWidget] Error en renderTwitchRedeem:', err);
+            }
+        }
+
+        // --- MANEJO DE EMOTES Y NOMBRES DE TIKTOK ---
+        const INVISIBLE_OR_SPACE_REGEX = /^[\s\u0000-\u001F\u007F-\u009F\u00A0\u1680\u180E\u2000-\u200F\u2028\u2029\u202A-\u202E\u202F\u205F\u2060\u2800\u3000\u3164\uFFA0\uFEFF]+|[\s\u0000-\u001F\u007F-\u009F\u00A0\u1680\u180E\u2000-\u200F\u2028\u2029\u202A-\u202E\u202F\u205F\u2060\u2800\u3000\u3164\uFFA0\uFEFF]+$/g;
+        const INTERNAL_INVISIBLE_OR_SPACE_REGEX = /[\s\u00A0\u1680\u180E\u2000-\u200F\u2028\u2029\u202A-\u202E\u202F\u205F\u2060\u2800\u3000\u3164\uFFA0\uFEFF]+/g;
+
+        function cleanVisibleName(str) {
+            if (!str || typeof str !== 'string') return '';
+            let clean = str.replace(INVISIBLE_OR_SPACE_REGEX, '');
+            clean = clean.replace(INTERNAL_INVISIBLE_OR_SPACE_REGEX, ' ');
+            clean = clean.trim();
+            if (!clean) return '';
+
+            // Comprobar si contiene al menos una letra, número o emoji (evita nombres de sólo puntos '...', espacios o símbolos invisibles)
+            let hasSubstance = false;
+            try {
+                hasSubstance = /[\p{L}\p{N}]/u.test(clean) || /\p{Extended_Pictographic}/u.test(clean);
+            } catch (e) {
+                hasSubstance = /[a-zA-Z0-9\u00C0-\u024F\u1E00-\u1EFF]/.test(clean);
+            }
+            if (!hasSubstance) return '';
+
+            return clean;
+        }
+
+        function truncateDisplayName(name, maxChars = 20) {
+            if (!name) return 'Usuario';
+            const chars = Array.from(name);
+            if (chars.length > maxChars) {
+                const sliced = chars.slice(0, maxChars).join('').trimEnd();
+                return (sliced || chars.slice(0, maxChars).join('')) + '...';
+            }
+            return name;
+        }
+
+        function getTikTokDisplayName(d) {
+            if (!d) return 'Usuario';
+            const rawNick = (typeof d.nickname === 'string' && d.nickname)
+                || (d.user && typeof d.user.nickname === 'string' && d.user.nickname)
+                || (d.userDetails && typeof d.userDetails.nickname === 'string' && d.userDetails.nickname)
+                || (d.sender && typeof d.sender.nickname === 'string' && d.sender.nickname);
+            const cleanNick = cleanVisibleName(rawNick);
+
+            if (cleanNick) {
+                return truncateDisplayName(cleanNick, 20);
+            }
+
+            // Fallback a uniqueId si el nickname es invisible, vacío, sólo puntos/símbolos o bot
+            const rawHandle = (typeof d.uniqueId === 'string' && d.uniqueId)
+                || (d.user && typeof d.user.uniqueId === 'string' && d.user.uniqueId)
+                || (d.userDetails && typeof d.userDetails.uniqueId === 'string' && d.userDetails.uniqueId)
+                || (d.sender && typeof d.sender.uniqueId === 'string' && d.sender.uniqueId)
+                || (typeof d.username === 'string' && d.username);
+            const cleanHandle = cleanVisibleName(rawHandle) || (typeof rawHandle === 'string' ? rawHandle.trim() : '');
+
+            if (cleanHandle) {
+                return truncateDisplayName(cleanHandle, 20);
+            }
+
+            return d.userId ? String(d.userId) : 'Usuario';
+        }
+
+        function getTikTokHandle(d) {
+            if (!d) return 'user';
+            const rawHandle = (typeof d.uniqueId === 'string' && d.uniqueId)
+                || (d.user && typeof d.user.uniqueId === 'string' && d.user.uniqueId)
+                || (d.userDetails && typeof d.userDetails.uniqueId === 'string' && d.userDetails.uniqueId)
+                || (d.sender && typeof d.sender.uniqueId === 'string' && d.sender.uniqueId)
+                || (typeof d.username === 'string' && d.username);
+            const cleanHandle = cleanVisibleName(rawHandle) || (typeof rawHandle === 'string' ? rawHandle.trim() : '');
+            if (cleanHandle) return cleanHandle;
+            const cleanNick = cleanVisibleName(d.nickname || (d.user && d.user.nickname));
+            return cleanNick || (d.userId ? String(d.userId) : 'user');
+        }
+
+        const tiktokEmotesMap = new Map();
+
+        function extractSlugFromUrl(url) {
+            if (!url || typeof url !== 'string') return '';
+            try {
+                const lastPart = url.split('/').pop().split('?')[0].split('~')[0];
+                return lastPart.replace(/\.[a-z0-9]+$/i, '').toLowerCase();
+            } catch(e) { return ''; }
+        }
+
+        function registerTikTokEmotes(list) {
+            if (!Array.isArray(list)) return;
+            list.forEach(e => {
+                if (!e) return;
+                const img = (e.image && e.image.url_list && e.image.url_list[0])
+                    || (e.image && e.image.imageUrl)
+                    || e.emoteImageUrl
+                    || (typeof e.url === 'string' ? e.url : '');
+                if (!img) return;
+
+                const id = String(e.id || e.emoteId || '').trim();
+                const name = String(e.name || e.emoteName || '').trim();
+                const slug = extractSlugFromUrl(img);
+
+                if (id) {
+                    tiktokEmotesMap.set(id.toLowerCase(), img);
+                    tiktokEmotesMap.set(`[${id.toLowerCase()}]`, img);
+                }
+                if (name) {
+                    const cleanName = name.replace(/^#/, '').toLowerCase();
+                    tiktokEmotesMap.set(cleanName, img);
+                    tiktokEmotesMap.set(`[${cleanName}]`, img);
+                    tiktokEmotesMap.set(name.toLowerCase(), img);
+                    tiktokEmotesMap.set(`[${name.toLowerCase()}]`, img);
+                }
+                if (slug) {
+                    tiktokEmotesMap.set(slug.toLowerCase(), img);
+                    tiktokEmotesMap.set(`[${slug.toLowerCase()}]`, img);
+                }
+            });
+        }
+
+        // Solo URLs http(s) para imágenes de emotes/stickers
+        function safeEmoteUrl(url) {
+            if (typeof url !== 'string') return '';
+            const u = url.trim();
+            return /^https?:\/\//i.test(u) ? u : '';
+        }
+
+        function tiktokEmoteImgTag(url, alt, extraClass) {
+            const safe = safeEmoteUrl(url);
+            if (!safe) return '';
+            const a = escapeHtml(alt || 'emote');
+            return `<span class="emote-container"><img src="${escapeHtml(safe)}" class="emote tiktok-emote${extraClass ? ' ' + extraClass : ''}" alt="${a}" title="${a}" loading="lazy"></span>`;
+        }
+
+        // Acepta el formato normalizado de main.js ({ id, url, pos }) y el raw del conector
+        // ({ placeInComment, emote: { emoteId, image: { imageUrl } } } / { emoteId, image: { url: [] } })
+        function normalizeTikTokEmotes(list) {
+            if (!Array.isArray(list)) return [];
+            const out = [];
+            list.forEach(e => {
+                if (!e || typeof e !== 'object') return;
+                const em = (e.emote && typeof e.emote === 'object') ? e.emote : e;
+                const img = (em.image && typeof em.image === 'object') ? em.image : {};
+                const url = safeEmoteUrl(e.url || em.url || img.imageUrl || (Array.isArray(img.url_list) ? img.url_list[0] : '') || (Array.isArray(img.url) ? img.url[0] : '') || em.emoteImageUrl || e.emoteImageUrl || '');
+                if (!url) return;
+                const rawPos = (e.pos !== undefined && e.pos !== null) ? e.pos : e.placeInComment;
+                const pos = (rawPos !== undefined && rawPos !== null && rawPos !== '' && Number.isFinite(Number(rawPos))) ? Math.max(0, Math.floor(Number(rawPos))) : null;
+                out.push({
+                    id: String(em.emoteId || em.id || e.id || '').trim(),
+                    name: String(em.emoteName || em.name || '').trim().replace(/^#/, ''),
+                    url,
+                    pos
+                });
+            });
+            return out;
+        }
+
+        function learnTikTokEmoteKey(key, url) {
+            const k = String(key || '').trim().toLowerCase();
+            if (!k || !url) return;
+            tiktokEmotesMap.set(k, url);
+            tiktokEmotesMap.set(`[${k}]`, url);
+        }
+
+        // Escapa un tramo de texto y sustituye placeholders "[tag]" conocidos por su imagen
+        function renderTikTokTextSegment(segment) {
+            const s = String(segment || '');
+            let html = '';
+            let last = 0;
+            s.replace(/\[([^\[\]]{1,40})\]/g, (match, tag, offset) => {
+                html += escapeHtml(s.slice(last, offset));
+                last = offset + match.length;
+                const lowerTag = tag.trim().toLowerCase();
+                const img = tiktokEmotesMap.get(lowerTag) || tiktokEmotesMap.get(`[${lowerTag}]`);
+                if (img && safeEmoteUrl(img)) {
+                    html += tiktokEmoteImgTag(img, tag);
+                } else if (/^[a-z0-9_]{1,30}$/.test(lowerTag)) {
+                    // Emojis integrados de TikTok ([smile], [happy]...): intentar CDN; si falla, volver al texto
+                    const cdnUrl = `https://p16-webcast.tiktokcdn.com/webcast-va/${encodeURIComponent(lowerTag)}.png~tplv-fyjuxuxag8-webp.webp`;
+                    const a = escapeHtml(tag);
+                    html += `<span class="emote-container"><img src="${cdnUrl}" class="emote tiktok-emote" alt="${a}" title="${a}" loading="lazy" onerror="this.onerror=null;this.parentNode.replaceChild(document.createTextNode('['+this.alt+']'),this);"></span>`;
+                } else {
+                    html += escapeHtml(match);
+                }
+                return match;
+            });
+            html += escapeHtml(s.slice(last));
+            return html;
+        }
+
+        function renderTikTokComment(comment, emotesList) {
+            const raw = String(comment !== undefined && comment !== null ? comment : '');
+            const list = normalizeTikTokEmotes(emotesList);
+
+            list.forEach(e => {
+                if (e.id) learnTikTokEmoteKey(e.id, e.url);
+                if (e.name) learnTikTokEmoteKey(e.name, e.url);
+                const slug = extractSlugFromUrl(e.url);
+                if (slug) learnTikTokEmoteKey(slug, e.url);
+            });
+
+            // Mensaje solo con stickers/emotes: mostrarlos en tamaño grande
+            if (!raw.trim()) {
+                return list.map(e => tiktokEmoteImgTag(e.url, e.name || 'sticker', 'tiktok-sticker')).join(' ');
+            }
+
+            const chars = Array.from(raw); // índice por code point (no parte emojis)
+            const positioned = list.filter(e => e.pos !== null && e.pos <= chars.length)
+                .map((e, i) => ({ e, i }))
+                .sort((a, b) => (a.e.pos - b.e.pos) || (a.i - b.i))
+                .map(x => x.e);
+            const unpositioned = list.filter(e => !(e.pos !== null && e.pos <= chars.length));
+
+            // Sin posición: asignar en orden a placeholders "[tag]" del texto; el resto se añade al final
+            let nextFree = 0;
+            if (unpositioned.length > 0) {
+                Array.from(raw.matchAll(/\[([^\[\]]{1,40})\]/g)).forEach(m => {
+                    if (nextFree >= unpositioned.length) return;
+                    const tag = m[1].trim().toLowerCase();
+                    if (!tag) return;
+                    const current = tiktokEmotesMap.get(tag);
+                    if (!current || current === unpositioned[nextFree].url) {
+                        learnTikTokEmoteKey(tag, unpositioned[nextFree].url);
+                        nextFree++;
+                    }
+                });
+            }
+
+            let html = '';
+            let cursor = 0;
+            positioned.forEach(e => {
+                if (e.pos > cursor) {
+                    html += renderTikTokTextSegment(chars.slice(cursor, e.pos).join(''));
+                    cursor = e.pos;
+                }
+                // Si en esa posición hay un placeholder "[...]", lo consumimos para no duplicarlo
+                if (chars[cursor] === '[') {
+                    const close = chars.indexOf(']', cursor);
+                    if (close > cursor && close - cursor <= 41) {
+                        const tag = chars.slice(cursor + 1, close).join('');
+                        if (tag.trim()) learnTikTokEmoteKey(tag, e.url);
+                        cursor = close + 1;
+                    }
+                }
+                html += tiktokEmoteImgTag(e.url, e.name || 'emote');
+            });
+            html += renderTikTokTextSegment(chars.slice(cursor).join(''));
+
+            unpositioned.slice(nextFree).forEach(e => {
+                html += ' ' + tiktokEmoteImgTag(e.url, e.name || 'emote');
+            });
+
+            return html.trim();
+        }
+
+        // Texto para TTS sin placeholders de stickers/emotes
+        function stripTikTokEmotePlaceholders(text, emotesList) {
+            let t = String(text || '');
+            if (Array.isArray(emotesList) && emotesList.length > 0) t = t.replace(/\[[^\[\]]{1,40}\]/g, ' ');
+            return t.replace(/\s{2,}/g, ' ').trim();
+        }
+
+
         if(socket) {
             socket.on('connect', () => {
                 console.log('[Chat] Conectado a sala:', streamToken);
@@ -474,20 +965,100 @@
             socket.on('twitch-badges', (map) => {
                 twitchBadgesMap = map;
             });
-            socket.on('twitch-connection-status', (status) => {
-                if(status.type === 'connected' && status.broadcasterId) fetchChannelEmotes(status.broadcasterId);
-            });
-            socket.on('tiktok-event', (payload) => {
-                if(payload.type === 'chat') {
-                    const d = payload.data;
-                    const username = d.uniqueId || d.nickname || (d.user && d.user.uniqueId) || (d.user && d.user.nickname) || d.userId || 'User';
-                    const color = getUserColor(username);
-                    addMessage('tiktok', username, d.comment, [], color);
+            socket.on('twitch-channel-points-icon', (url) => {
+                if (url) {
+                    twitchChannelPointsIcon = url;
+                    document.querySelectorAll('.redeem-cost-icon').forEach(imgEl => {
+                        imgEl.src = url;
+                        imgEl.style.display = 'inline-block';
+                    });
                 }
             });
-            socket.on('twitch-event', (payload) => {
+            socket.on('twitch-connection-status', (status) => {
+                if(status && status.type === 'connected') {
+                    if (status.broadcasterId) fetchChannelEmotes(status.broadcasterId);
+                    if (status.channel) fetchChannelPointsIcon(status.channel);
+                }
+            });
+            socket.on('update-emotes', registerTikTokEmotes);
+            socket.on('new-emote-discovered', (e) => registerTikTokEmotes([e]));
+
+            socket.on('tiktok-event', (payload) => {
                 if(payload.type === 'chat') {
-                    const d = payload.data;
+                    const d = payload.data || {};
+                    const displayName = getTikTokDisplayName(d);
+                    const handle = getTikTokHandle(d);
+                    const color = getUserColor(handle);
+                    const comment = renderTikTokComment(d.comment || d.message || '', d.emotes);
+                    addMessage('tiktok', displayName, comment, [], color, null, null, [], true);
+                } else if (payload.type === 'emote') {
+                    const d = payload.data || {};
+                    if (d.isSubEmoteOfChat) return;
+                    const displayName = getTikTokDisplayName(d);
+                    const handle = getTikTokHandle(d);
+                    const color = getUserColor(handle);
+                    const imgUrl = safeEmoteUrl(d.emoteImageUrl
+                        || (Array.isArray(d.emotes) && d.emotes[0] && d.emotes[0].url)
+                        || (d.image && (d.image.imageUrl || (d.image.url_list && d.image.url_list[0]) || (Array.isArray(d.image.url) && d.image.url[0])))
+                        || '');
+                    if (imgUrl) {
+                        const altName = (d.emoteName && !String(d.emoteName).startsWith('#')) ? String(d.emoteName) : 'sticker';
+                        const emoteHtml = tiktokEmoteImgTag(imgUrl, altName, 'tiktok-sticker');
+                        addMessage('tiktok', displayName, emoteHtml, [], color, null, null, [], true);
+                    }
+                }
+            });
+
+            function extractWatchStreakFromTags(tags) {
+                if (!tags || typeof tags !== 'object') return 0;
+                const streakKeys = [
+                    'msg-param-watch-streak',
+                    'msgParamWatchStreak',
+                    'msg-param-streak-count',
+                    'msgParamStreakCount',
+                    'msg-param-streak-val',
+                    'msg-param-streak-value',
+                    'msg-param-streak',
+                    'watch-streak',
+                    'watchStreak',
+                    'streak-count',
+                    'viewer-streak'
+                ];
+                for (const key of streakKeys) {
+                    if (tags[key] !== undefined && tags[key] !== null && tags[key] !== '') {
+                        const val = parseInt(tags[key], 10);
+                        if (!isNaN(val) && val > 0) return val;
+                    }
+                }
+                if (tags['msg-id'] === 'watch-streak' || tags['msg-id'] === 'watch_streak') {
+                    const val = parseInt(tags['msg-param-value'] || tags['msg-param-count'] || tags['value'] || 0, 10);
+                    if (!isNaN(val) && val > 0) return val;
+                }
+                return 0;
+            }
+
+            socket.on('twitch-event', (payload) => {
+                const d = payload.data || {};
+                const type = payload.type || 'chat';
+
+                if (type === 'chat') {
+                    const watchStreak = d.watchStreak || extractWatchStreakFromTags(d.tags);
+                    if (watchStreak > 0 || (d.tags && (d.tags['msg-id'] === 'watch-streak' || d.tags['msg-id'] === 'watch_streak'))) {
+                        const sVal = watchStreak || 1;
+                        const username = d.user || d.username || d.uniqueId || d.nickname || 'Usuario';
+                        const comment = d.message || d.comment || '';
+                        const commentText = comment ? ` — <span style="font-style: italic;">"${escapeHtml(comment)}"</span>` : '';
+                        const msgHtml = `<span style="background: rgba(255, 69, 0, 0.2); padding: 4px 8px; border-radius: 6px; border-left: 3px solid #ff4500; display: inline-block; margin-top: 2px;"><i class="fa-solid fa-fire-flame-curved" style="color: #ff4500; margin-right: 4px;"></i> <strong style="color: #ff4500;">¡Racha de espectador!</strong> ¡Lleva <strong style="color: #ffd700;">${sVal} directos seguidos</strong> viendo el canal!${commentText}</span>`;
+                        addMessage('twitch', username, msgHtml, [], '#9146FF', null, null, [], true);
+                        return;
+                    }
+
+                    const isRedeem = d.tags && (d.tags['custom-reward-id'] || d.tags['reward-title'] || d.tags['msg-param-reward-title']);
+                    if (isRedeem) {
+                        renderTwitchRedeem(d);
+                        return;
+                    }
+
                     let badgeUrls = [];
                     if (d.badges && twitchBadgesMap) {
                         Object.keys(d.badges).forEach(key => {
@@ -515,6 +1086,48 @@
                         if (gid) gifUrl = `https://media.giphy.com/media/${gid}/giphy.gif`;
                     }
                     addMessage('twitch', d.user || d.username, d.message, badgeUrls, d.color || '#9146FF', d.emotes, gifUrl, gifs);
+                } else if (type === 'watch-streak') {
+                    const watchStreak = d.watchStreak || extractWatchStreakFromTags(d.tags) || 1;
+                    const username = d.user || d.username || d.uniqueId || d.nickname || 'Usuario';
+                    const comment = d.message || d.comment || '';
+                    const commentText = comment ? ` — <span style="font-style: italic;">"${escapeHtml(comment)}"</span>` : '';
+                    const msgHtml = `<span style="background: rgba(255, 69, 0, 0.2); padding: 4px 8px; border-radius: 6px; border-left: 3px solid #ff4500; display: inline-block; margin-top: 2px;"><i class="fa-solid fa-fire-flame-curved" style="color: #ff4500; margin-right: 4px;"></i> <strong style="color: #ff4500;">¡Racha de espectador!</strong> ¡Lleva <strong style="color: #ffd700;">${watchStreak} directos seguidos</strong> viendo el canal!${commentText}</span>`;
+                    addMessage('twitch', username, msgHtml, [], '#9146FF', null, null, [], true);
+                } else if (type === 'redeem') {
+                    renderTwitchRedeem(d);
+                } else if (type === 'subscribe' || type === 'sub') {
+                    const username = d.username || d.uniqueId || d.nickname || 'Usuario';
+                    const isGift = Boolean(d.isGift);
+                    const count = d.count || 1;
+                    const recipient = d.recipient;
+                    const months = d.months || 0;
+                    const streak = d.streakMonths || 0;
+                    const message = d.message || d.comment || '';
+                    let planText = 'Sub';
+                    if (d.plan === 'Prime') planText = 'Prime';
+
+                    if (isGift) {
+                        const targetText = recipient ? ` a <strong style="color: #00f5d4;">${escapeHtml(recipient)}</strong>` : (count > 1 ? ` (${count} subs)` : '');
+                        const msgHtml = `<span style="background: rgba(145, 70, 255, 0.25); padding: 4px 8px; border-radius: 6px; border-left: 3px solid #ff69b4; display: inline-block; margin-top: 2px;"><i class="fa-solid fa-gift" style="color: #ff69b4; margin-right: 4px;"></i> ¡Regaló suscripción${targetText}!</span>`;
+                        addMessage('twitch', username, msgHtml, [], '#9146FF', null, null, [], true);
+                    } else if (months > 1 || streak > 0) {
+                        const streakText = streak > 0 ? ` 🔥 <strong style="color: #ff4500;">racha de ${streak} m.</strong>` : '';
+                        const monthsText = months > 1 ? ` por <strong style="color: #ffd700;">${months} meses</strong>${streakText}` : '';
+                        const commentText = message ? ` — <span style="font-style: italic;">"${escapeHtml(message)}"</span>` : '';
+                        const msgHtml = `<span style="background: rgba(145, 70, 255, 0.25); padding: 4px 8px; border-radius: 6px; border-left: 3px solid #ffd700; display: inline-block; margin-top: 2px;"><i class="fa-solid fa-star" style="color: #ffd700; margin-right: 4px;"></i> ¡Se resuscribió${monthsText}! (${planText})${commentText}</span>`;
+                        addMessage('twitch', username, msgHtml, [], '#9146FF', null, null, [], true);
+                    } else {
+                        const commentText = message ? ` — <span style="font-style: italic;">"${escapeHtml(message)}"</span>` : '';
+                        const msgHtml = `<span style="background: rgba(145, 70, 255, 0.25); padding: 4px 8px; border-radius: 6px; border-left: 3px solid #ffd700; display: inline-block; margin-top: 2px;"><i class="fa-solid fa-star" style="color: #ffd700; margin-right: 4px;"></i> ¡Se ha suscrito! (${planText})${commentText}</span>`;
+                        addMessage('twitch', username, msgHtml, [], '#9146FF', null, null, [], true);
+                    }
+                } else if (type === 'cheer') {
+                    const username = d.user || d.username || d.uniqueId || d.nickname || 'Usuario';
+                    const bits = d.bits || 0;
+                    const comment = d.comment || d.message || '';
+                    const commentText = comment ? ` — <span style="font-style: italic;">"${escapeHtml(comment)}"</span>` : '';
+                    const msgHtml = `<span style="background: rgba(255, 215, 0, 0.15); padding: 4px 8px; border-radius: 6px; border-left: 3px solid #ffd700; display: inline-block; margin-top: 2px;"><i class="fa-solid fa-gem" style="color: #b9a3e3; margin-right: 4px;"></i> Envió <strong style="color: #ffd700;">${bits} Bits</strong>!${commentText}</span>`;
+                    addMessage('twitch', username, msgHtml, [], '#9146FF', null, null, [], true);
                 }
             });
             socket.on('kick-event', (payload) => {

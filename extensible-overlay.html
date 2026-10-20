@@ -61,6 +61,35 @@
             --border-card: rgba(46, 213, 115, 0.35);
         }
 
+        body[data-theme="pink"] {
+            --primary: #ff4fa3;
+            --primary-rgb: 255, 79, 163;
+            --accent: #ffa1d0;
+            --accent-rgb: 255, 161, 208;
+            --glow: rgba(255, 79, 163, 0.45);
+            --border-card: rgba(255, 79, 163, 0.35);
+        }
+
+        body[data-theme="ice"] {
+            --primary: #a5f3fc;
+            --primary-rgb: 165, 243, 252;
+            --accent: #e0f2fe;
+            --accent-rgb: 224, 242, 254;
+            --glow: rgba(165, 243, 252, 0.4);
+            --border-card: rgba(224, 242, 254, 0.45);
+            --bg-card: rgba(20, 34, 52, 0.78);
+        }
+
+        body[data-theme="sunset"] {
+            --primary: #ff7e5f;
+            --primary-rgb: 255, 126, 95;
+            --accent: #feb47b;
+            --accent-rgb: 254, 180, 123;
+            --glow: rgba(255, 126, 95, 0.45);
+            --border-card: rgba(254, 180, 123, 0.4);
+            --bg-card: rgba(30, 14, 20, 0.85);
+        }
+
         /* --- TEMA SIMPLE (SOLO TIEMPO) --- */
         body[data-theme="simple"] {
             --primary: #ffffff;
@@ -106,8 +135,15 @@
             text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95), 0 0 4px #000;
         }
 
+        body[data-theme="simple"] .add-stack {
+            margin-top: 6px;
+        }
+
+        body[data-theme="simple"] .added-time-pill.neg {
+            color: #ff4757;
+        }
+
         body[data-theme="simple"] .added-time-pill {
-            bottom: -32px;
             background: rgba(10, 10, 15, 0.92);
             color: #2ed573;
             border: 1px solid rgba(255, 255, 255, 0.25);
@@ -289,7 +325,7 @@
             display: flex;
             align-items: baseline;
             justify-content: center;
-            font-family: 'Orbitron', monospace;
+            font-family: var(--timer-font, 'Orbitron'), monospace;
             font-weight: 900;
             line-height: 1;
             margin: 6px 0;
@@ -317,9 +353,25 @@
         }
 
         /* --- NOTIFICACIÓN FLOTANTE DE TIEMPO AÑADIDO --- */
-        .added-time-pill {
+        .add-stack {
             position: absolute;
-            bottom: -16px;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: -14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .added-time-pill {
+            position: relative;
+            max-width: 90vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
             background: linear-gradient(135deg, var(--primary), var(--accent));
             color: #000;
             font-weight: 900;
@@ -342,6 +394,116 @@
             opacity: 1;
             transform: translateY(0) scale(1);
         }
+
+        .added-time-pill.leaving {
+            opacity: 0;
+            transform: translateY(-6px) scale(0.95);
+        }
+
+        .added-time-pill.neg {
+            background: linear-gradient(135deg, #ff4757, #c0392b);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.55);
+        }
+
+        /* Rebote del reloj al sumar / restar tiempo */
+        .time-display-container.bump-add { animation: bump-add 0.45s ease-out; }
+        .time-display-container.bump-sub { animation: bump-sub 0.45s ease-out; }
+        @keyframes bump-add {
+            0% { transform: scale(1); }
+            35% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+        @keyframes bump-sub {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            50% { transform: translateX(4px); }
+            75% { transform: translateX(-2px); }
+            100% { transform: translateX(0); }
+        }
+
+        /* Destello de color en los dígitos + badge "+Xs" al lado (igual que en la app) */
+        .time-digits { transition: color 0.6s ease, text-shadow 0.6s ease; }
+        .timer-card.flash-add .time-digits {
+            color: #00ff88 !important;
+            text-shadow: 0 0 12px rgba(0, 255, 136, 0.9) !important;
+            transition: none;
+        }
+        .timer-card.flash-sub .time-digits {
+            color: #ff4757 !important;
+            text-shadow: 0 0 12px rgba(255, 71, 87, 0.9) !important;
+            transition: none;
+        }
+        .time-delta-badge {
+            align-self: center;
+            margin-left: 10px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 0;
+            text-shadow: none;
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.15);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            white-space: nowrap;
+        }
+        .time-delta-badge.neg {
+            color: #ff4757;
+            background: rgba(255, 71, 87, 0.15);
+            border-color: rgba(255, 71, 87, 0.3);
+        }
+        .time-delta-badge.show { opacity: 1; }
+        body[data-hide-badge="1"] .time-delta-badge { display: none; }
+
+        /* --- AVISO DE POCO TIEMPO --- */
+        .timer-card.warn {
+            border-color: rgba(255, 71, 87, 0.65);
+            animation: warn-glow 2s ease-in-out infinite;
+        }
+        .timer-card.warn .time-digits {
+            color: #ffc2c7;
+            text-shadow: 0 0 14px rgba(255, 71, 87, 0.75), 0 2px 8px rgba(0, 0, 0, 0.9);
+        }
+        .timer-card.critical {
+            border-color: var(--danger);
+            animation: warn-glow 0.8s ease-in-out infinite;
+        }
+        .timer-card.critical .time-digits {
+            color: #ff4757;
+            text-shadow: 0 0 20px rgba(255, 71, 87, 0.95), 0 2px 8px rgba(0, 0, 0, 0.95);
+            display: inline-block;
+            animation: critical-beat 1s ease-in-out infinite;
+        }
+        @keyframes warn-glow {
+            0%, 100% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 12px rgba(255, 71, 87, 0.35); }
+            50% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 32px rgba(255, 71, 87, 0.85); }
+        }
+        @keyframes critical-beat {
+            0%, 100% { transform: scale(1); }
+            15% { transform: scale(1.07); }
+            30% { transform: scale(1); }
+        }
+
+        /* --- INDICADOR DE PAUSA --- */
+        .pause-indicator {
+            display: none;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: #ffa502;
+            opacity: 0.75;
+            margin-top: 2px;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+            animation: blink 2.4s ease-in-out infinite;
+        }
+        .timer-card.paused .pause-indicator { display: block; }
+        .timer-card.paused .time-digits { opacity: 0.8; }
+
+        .timer-card.ended .time-digits { color: #ff8a94; }
 
         /* --- ALERTA DE FINALIZACIÓN --- */
         .time-up-banner {
@@ -415,29 +577,80 @@
         <div class="time-display-container">
             <span class="time-digits" id="time-digits">01:00:00</span>
             <span class="time-ms" id="time-ms">.00</span>
+            <span class="time-delta-badge" id="time-delta-badge"></span>
         </div>
+
+        <div class="pause-indicator" id="pause-indicator"><i class="fa-solid fa-pause"></i> EN PAUSA</div>
 
         <div class="time-up-banner" id="time-up-banner">
-            <i class="fa-solid fa-triangle-exclamation"></i> ¡TIEMPO TERMINADO!
+            <i class="fa-solid fa-triangle-exclamation"></i> <span id="end-text">¡TIEMPO TERMINADO!</span>
         </div>
 
-        <!-- NOTIFICACION DE TIEMPO AÑADIDO -->
-        <div class="added-time-pill" id="added-pill">
-            <i class="fa-solid fa-bolt"></i>
-            <span id="added-text">+30s</span>
-        </div>
+        <!-- NOTIFICACIONES DE TIEMPO AÑADIDO / RESTADO (apiladas) -->
+        <div class="add-stack" id="add-stack"></div>
     </div>
 
     <script>
         // --- PARÁMETROS URL ---
+        // theme, layout, showMs, title (existentes)
+        // warn   = segundos para el aviso de poco tiempo (def. 300, 0 = desactivado)
+        // endText= texto al terminar (def. "¡TIEMPO TERMINADO!")
+        // color  = color de acento hex (ej. ff4fa3 o #ff4fa3)
+        // size   = escala del widget (0.3 - 4, def. 1)
+        // font   = fuente de Google Fonts para los dígitos (ej. "Bebas Neue")
         const urlParams = new URLSearchParams(window.location.search);
         const paramTheme = urlParams.get('theme');
         const paramLayout = urlParams.get('layout');
         const paramShowMs = urlParams.get('showMs');
         const paramTitle = urlParams.get('title');
+        const paramWarn = urlParams.get('warn');
+        const paramEndText = urlParams.get('endText');
+        const paramColor = urlParams.get('color');
+        const paramSize = urlParams.get('size');
+        const paramFont = urlParams.get('font');
 
         if (paramTheme) document.body.setAttribute('data-theme', paramTheme);
         if (paramLayout) document.body.setAttribute('data-layout', paramLayout);
+        if (urlParams.get('badge') === '0') document.body.setAttribute('data-hide-badge', '1'); // ?badge=0 oculta el "+Xs" junto al reloj
+
+        let warnSeconds = 300;
+        if (paramWarn !== null && paramWarn !== '' && !isNaN(Number(paramWarn))) {
+            warnSeconds = Math.max(0, Number(paramWarn));
+        }
+        const CRITICAL_SECONDS = 60;
+
+        // Color de acento personalizado
+        (function applyAccentColor(raw) {
+            if (!raw) return;
+            let hex = String(raw).trim().replace(/^#/, '');
+            if (/^[0-9a-fA-F]{3}$/.test(hex)) hex = hex.split('').map(c => c + c).join('');
+            if (!/^[0-9a-fA-F]{6}$/.test(hex)) return;
+            const r = parseInt(hex.slice(0, 2), 16);
+            const g = parseInt(hex.slice(2, 4), 16);
+            const b = parseInt(hex.slice(4, 6), 16);
+            const mix = (c) => Math.round(c + (255 - c) * 0.35);
+            const st = document.body.style;
+            st.setProperty('--primary', `#${hex}`);
+            st.setProperty('--primary-rgb', `${r}, ${g}, ${b}`);
+            st.setProperty('--accent', `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`);
+            st.setProperty('--accent-rgb', `${mix(r)}, ${mix(g)}, ${mix(b)}`);
+            st.setProperty('--glow', `rgba(${r}, ${g}, ${b}, 0.45)`);
+            if (document.body.getAttribute('data-theme') !== 'simple') {
+                st.setProperty('--border-card', `rgba(${r}, ${g}, ${b}, 0.35)`);
+            }
+        })(paramColor);
+
+        // Fuente personalizada (Google Fonts). Solo letras, números y espacios.
+        (function applyFont(raw) {
+            if (!raw) return;
+            const name = String(raw).trim();
+            if (!/^[A-Za-z0-9 ]{1,40}$/.test(name)) return;
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(name).replace(/%20/g, '+') + ':wght@400;700;900&display=swap';
+            document.head.appendChild(link);
+            document.body.style.setProperty('--timer-font', `'${name}'`);
+        })(paramFont);
 
         // --- ELEMENTOS DEL DOM ---
         const cardEl = document.getElementById('timer-card');
@@ -447,17 +660,34 @@
         const digitsEl = document.getElementById('time-digits');
         const msEl = document.getElementById('time-ms');
         const timeUpBanner = document.getElementById('time-up-banner');
-        const addedPill = document.getElementById('added-pill');
-        const addedText = document.getElementById('added-text');
+        const endTextEl = document.getElementById('end-text');
+        const addStack = document.getElementById('add-stack');
+        const timeContainer = document.querySelector('.time-display-container');
+
+        if (paramEndText) endTextEl.textContent = paramEndText.slice(0, 60);
+
+        // Escala del widget
+        if (paramSize && !isNaN(Number(paramSize))) {
+            const sz = Math.min(4, Math.max(0.3, Number(paramSize)));
+            if (sz !== 1) cardEl.style.zoom = sz;
+        }
 
         // --- ESTADO LOCAL ---
-        let currentSeconds = 3600;
+        // El tiempo mostrado se interpola desde el último valor recibido del servidor
+        // (baseSeconds) y el instante en que llegó (baseAt). Cada actualización resincroniza.
+        let baseSeconds = 3600;
+        let baseAt = performance.now();
         let isRunning = false;
         let labelText = paramTitle || "EXTENSIBLE";
         let showMilliseconds = paramShowMs !== null ? paramShowMs === 'true' : false;
-        let lastSyncTimestamp = performance.now();
-        let lastAddedTimestamp = 0;
-        let pillTimeout = null;
+        let endedChimed = false;
+        let firstSync = true;
+        const seenAddKeys = [];
+
+        function getRemaining() {
+            if (!isRunning) return Math.max(0, baseSeconds);
+            return Math.max(0, baseSeconds - (performance.now() - baseAt) / 1000);
+        }
 
         // Sonido de alerta sintetizado (sin necesidad de archivos de audio externos)
         function playChime(freq = 880, duration = 0.15) {
@@ -494,48 +724,145 @@
             return { timeStr: `${hStr}:${mStr}:${sStr}`, msStr };
         }
 
-        // Mostrar notificación de donación / tiempo agregado
-        function showAddedNotification(seconds, user, reason) {
-            let label = `+${Math.round(seconds)}s`;
-            if (seconds >= 3600) {
-                const hrs = Math.round(seconds / 3600 * 10) / 10;
-                label = `+${hrs}h`;
-            } else if (seconds >= 60) {
-                const mins = Math.round(seconds / 60);
-                label = `+${mins}m`;
+        // "+30s", "+5m", "+1m 30s", "+1.5h", "-10s"
+        function formatDelta(seconds) {
+            const sign = seconds < 0 ? '-' : '+';
+            const abs = Math.abs(seconds);
+            if (abs < 1) {
+                const v = Math.round(abs * 10) / 10 || Math.round(abs * 100) / 100;
+                return `${sign}${v}s`;
             }
-
-            if (user && user !== 'Admin' && user !== 'User') {
-                label += ` de ${user}`;
+            if (abs < 10) return `${sign}${Math.round(abs * 10) / 10}s`;
+            if (abs < 60) return `${sign}${Math.round(abs)}s`;
+            if (abs < 3600) {
+                const m = Math.floor(abs / 60);
+                const s = Math.round(abs % 60);
+                return s ? `${sign}${m}m ${s}s` : `${sign}${m}m`;
             }
+            return `${sign}${Math.round(abs / 3600 * 10) / 10}h`;
+        }
 
-            addedText.innerText = label;
-            addedPill.classList.add('show');
-            // playChime(1046.5, 0.2); // Disabled: no sound on added time
+        function clip(str, n) {
+            str = String(str == null ? '' : str).trim();
+            return str.length > n ? str.slice(0, n - 1) + '…' : str;
+        }
 
-            if (pillTimeout) clearTimeout(pillTimeout);
-            pillTimeout = setTimeout(() => {
-                addedPill.classList.remove('show');
-            }, 3500);
+        // --- COLA DE NOTIFICACIONES (+Xs / -Xs) ---
+        const MAX_VISIBLE_PILLS = 3;
+        const addQueue = [];
+        let visiblePills = 0;
+        let pumpTimer = null;
+        let lastPillAt = 0;
+
+        function enqueueAdded(seconds, user, reason) {
+            seconds = Number(seconds);
+            if (!seconds || isNaN(seconds)) return;
+            flashDigits(seconds); // inmediato, sin esperar a la cola de avisos
+            addQueue.push({ seconds, user, reason });
+            // Límite de seguridad: si llega una avalancha, se conservan las 60 más recientes
+            if (addQueue.length > 60) addQueue.splice(0, addQueue.length - 60);
+            pumpQueue();
+        }
+
+        function pumpQueue() {
+            if (pumpTimer || !addQueue.length || visiblePills >= MAX_VISIBLE_PILLS) return;
+            const wait = Math.max(0, lastPillAt + 280 - Date.now());
+            pumpTimer = setTimeout(() => {
+                pumpTimer = null;
+                if (!addQueue.length || visiblePills >= MAX_VISIBLE_PILLS) return;
+                lastPillAt = Date.now();
+                spawnPill(addQueue.shift());
+                pumpQueue();
+            }, wait);
+        }
+
+        // Dígitos en verde (rojo si se resta) ~1.5s y badge "+Xs" junto al reloj ~2s
+        let flashTimer = null;
+        let badgeTimer = null;
+        function flashDigits(seconds) {
+            const isNeg = seconds < 0;
+            const card = document.getElementById('timer-card');
+            const badge = document.getElementById('time-delta-badge');
+            if (card) {
+                card.classList.remove('flash-add', 'flash-sub');
+                card.classList.add(isNeg ? 'flash-sub' : 'flash-add');
+                clearTimeout(flashTimer);
+                flashTimer = setTimeout(() => card.classList.remove('flash-add', 'flash-sub'), 1500);
+            }
+            if (badge) {
+                badge.textContent = formatDelta(seconds);
+                badge.classList.toggle('neg', isNeg);
+                badge.classList.add('show');
+                clearTimeout(badgeTimer);
+                badgeTimer = setTimeout(() => badge.classList.remove('show'), 2000);
+            }
+        }
+
+        function spawnPill(item) {
+            const isNeg = item.seconds < 0;
+            let text = formatDelta(item.seconds);
+            const user = clip(item.user, 24);
+            const reason = clip(item.reason, 32);
+            const showUser = user && user !== 'Admin' && user !== 'User';
+            const showReason = reason && reason.toLowerCase() !== 'manual';
+            if (showUser) text += ` · ${user}`;
+            if (showReason) text += showUser ? ` (${reason})` : ` · ${reason}`;
+
+            const pill = document.createElement('div');
+            pill.className = 'added-time-pill' + (isNeg ? ' neg' : '');
+            const icon = document.createElement('i');
+            icon.className = isNeg ? 'fa-solid fa-minus' : 'fa-solid fa-bolt';
+            const span = document.createElement('span');
+            span.textContent = text;
+            pill.appendChild(icon);
+            pill.appendChild(span);
+            addStack.appendChild(pill);
+            visiblePills++;
+
+            // Rebote del reloj
+            timeContainer.classList.remove('bump-add', 'bump-sub');
+            void timeContainer.offsetWidth;
+            timeContainer.classList.add(isNeg ? 'bump-sub' : 'bump-add');
+
+            void pill.offsetWidth;
+            setTimeout(() => pill.classList.add('show'), 20);
+
+            // Si hay cola, se acortan los tiempos para no acumular retraso
+            const life = addQueue.length > 6 ? 1500 : (addQueue.length > 2 ? 2400 : 3500);
+            setTimeout(() => {
+                pill.classList.add('leaving');
+                pill.classList.remove('show');
+                setTimeout(() => {
+                    if (pill.parentNode) pill.parentNode.removeChild(pill);
+                    visiblePills = Math.max(0, visiblePills - 1);
+                    pumpQueue();
+                }, 380);
+            }, life);
         }
 
         // Actualizar la interfaz visual
-        function renderUI() {
-            titleEl.innerText = labelText;
-            
-            const { timeStr, msStr } = formatTime(currentSeconds);
-            digitsEl.innerText = timeStr;
-            msEl.innerText = msStr;
+        let lastRenderedState = '';
+        let lastRenderedTitle = null;
+        let lastTimeStr = '';
+        let lastMsStr = '';
+        let lastUrgency = '';
 
-            if (showMilliseconds) {
-                if (!msEl.classList.contains('show')) msEl.classList.add('show');
-            } else {
-                if (msEl.classList.contains('show')) msEl.classList.remove('show');
+        function renderUI() {
+            const remaining = getRemaining();
+
+            if (labelText !== lastRenderedTitle) {
+                lastRenderedTitle = labelText;
+                titleEl.textContent = labelText;
             }
+
+            const { timeStr, msStr } = formatTime(remaining);
+            if (timeStr !== lastTimeStr) { lastTimeStr = timeStr; digitsEl.textContent = timeStr; }
+            if (showMilliseconds && msStr !== lastMsStr) { lastMsStr = msStr; msEl.textContent = msStr; }
+            msEl.classList.toggle('show', showMilliseconds);
 
             // Estado (solo mutar DOM si el estado realmente cambia)
             let newState = 'paused';
-            if (currentSeconds <= 0) newState = 'ended';
+            if (remaining <= 0) newState = 'ended';
             else if (isRunning) newState = 'active';
 
             if (newState !== lastRenderedState) {
@@ -546,37 +873,40 @@
                 badgeEl.classList.add(newState);
 
                 if (newState === 'ended') {
-                    statusTextEl.innerText = 'FINALIZADO';
+                    statusTextEl.textContent = 'FINALIZADO';
                     timeUpBanner.style.display = 'block';
                 } else if (newState === 'active') {
-                    statusTextEl.innerText = 'ACTIVO';
+                    statusTextEl.textContent = 'ACTIVO';
                     timeUpBanner.style.display = 'none';
                 } else {
-                    statusTextEl.innerText = 'PAUSADO';
+                    statusTextEl.textContent = 'PAUSADO';
                     timeUpBanner.style.display = 'none';
                 }
+            }
+
+            // Aviso de poco tiempo (solo mientras corre)
+            let urgency = '';
+            if (newState === 'active' && warnSeconds > 0 && remaining < warnSeconds) {
+                urgency = remaining < Math.min(CRITICAL_SECONDS, warnSeconds) ? 'critical' : 'warn';
+            }
+            if (urgency !== lastUrgency) {
+                lastUrgency = urgency;
+                cardEl.classList.remove('warn', 'critical');
+                if (urgency === 'critical') cardEl.classList.add('warn', 'critical');
+                else if (urgency === 'warn') cardEl.classList.add('warn');
             }
         }
 
-        let lastRenderedState = '';
-
         // --- TICKER INTERPOLADO ---
-        // Se ejecuta suavemente sin bloquear el hilo
         setInterval(() => {
-            const now = performance.now();
-            const deltaSecs = (now - lastSyncTimestamp) / 1000;
-            lastSyncTimestamp = now;
-
-            if (isRunning && currentSeconds > 0) {
-                currentSeconds = Math.max(0, currentSeconds - deltaSecs);
-                if (currentSeconds === 0) {
-                    isRunning = false;
-                    playChime(440, 0.5);
-                }
+            if (isRunning && getRemaining() <= 0) {
+                baseSeconds = 0;
+                baseAt = performance.now();
+                isRunning = false;
+                if (!endedChimed) { endedChimed = true; playChime(440, 0.5); }
             }
-
             renderUI();
-        }, 80);
+        }, 50);
 
         // --- CONEXIÓN SOCKET.IO ---
         const streamToken = urlParams.get('token') || 'default';
@@ -598,15 +928,26 @@
         function handleExtensibleUpdate(ext) {
             if (!ext) return;
 
-            // Sincronizar tiempo del servidor
-            if (ext.time !== undefined && !isNaN(Number(ext.time))) {
-                currentSeconds = Math.max(0, Number(ext.time));
-                lastSyncTimestamp = performance.now();
+            const hasTime = ext.time !== undefined && ext.time !== null && !isNaN(Number(ext.time));
+            if (!hasTime && ext.active !== undefined) {
+                // Congelar el valor interpolado antes de cambiar de estado
+                baseSeconds = getRemaining();
+                baseAt = performance.now();
             }
 
             // Sincronizar estado activo/pausado
             if (ext.active !== undefined) {
                 isRunning = !!ext.active;
+            }
+
+            // Sincronizar tiempo del servidor (resincroniza la interpolación)
+            if (hasTime) {
+                // Compensar la latencia desde que la app envió el dato (evita saltos hacia atrás).
+                // Tope de 30s por si el payload viene de un estado guardado en disco (sentAt antiguo).
+                const sentLag = (ext.active && ext.sentAt) ? Math.min(30, Math.max(0, (Date.now() - Number(ext.sentAt)) / 1000)) : 0;
+                baseSeconds = Math.max(0, Number(ext.time) - (isNaN(sentLag) ? 0 : sentLag));
+                baseAt = performance.now();
+                if (baseSeconds > 0) endedChimed = false;
             }
 
             // Sincronizar título
@@ -624,19 +965,38 @@
                 document.body.setAttribute('data-theme', ext.theme);
             }
 
-            // Detectar si hubo una adición de tiempo reciente
-            if (ext.lastAdded && ext.lastAdded.ts && ext.lastAdded.ts !== lastAddedTimestamp) {
-                lastAddedTimestamp = ext.lastAdded.ts;
-                showAddedNotification(ext.lastAdded.seconds, ext.lastAdded.user, ext.lastAdded.reason);
+            // Detectar adiciones de tiempo nuevas (sin duplicar ni perder ninguna)
+            const la = ext.lastAdded;
+            if (la && la.ts) {
+                const key = `${la.ts}|${la.seconds}|${la.user}|${la.reason}`;
+                if (seenAddKeys.indexOf(key) === -1) {
+                    seenAddKeys.push(key);
+                    if (seenAddKeys.length > 80) seenAddKeys.shift();
+                    // En la primera carga, no repetir una adición antigua
+                    const stale = firstSync && (Date.now() - Number(la.ts) > 15000);
+                    if (!stale) enqueueAdded(la.seconds, la.user, la.reason);
+                }
             }
+            firstSync = false;
 
             renderUI();
         }
 
-        socket.on('extensible_data', handleExtensibleUpdate);
+        let lastExtDataAt = 0;
+        socket.on('extensible_data', (ext) => {
+            lastExtDataAt = Date.now();
+            handleExtensibleUpdate(ext);
+        });
 
         socket.on('data', (data) => {
             if (!data || !data.extensible) return;
+            // Si acaba de llegar un 'extensible_data' (canal rápido), ignorar el tiempo de este paquete (puede venir atrasado)
+            if (Date.now() - lastExtDataAt < 1500) {
+                const ext = Object.assign({}, data.extensible);
+                delete ext.time;
+                handleExtensibleUpdate(ext);
+                return;
+            }
             handleExtensibleUpdate(data.extensible);
         });
 
