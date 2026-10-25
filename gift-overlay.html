@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Gift Overlay</title>
+    <title>Regalos y Acciones</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
@@ -256,6 +256,14 @@
             }
         }
 
+        // 10000 -> "10K": que la cifra quepa dentro del corazón
+        function fmtCount(n) {
+            const v = Number(n) || 0;
+            if (v >= 1000000) return (Math.round(v / 100000) / 10) + 'M';
+            if (v >= 1000) return (Math.round(v / 100) / 10) + 'K';
+            return String(v);
+        }
+
         function render() {
             const grid = document.getElementById('grid');
             
@@ -290,18 +298,18 @@
                     if (!ipcRenderer && giftImg && (giftImg.startsWith('file:') || giftImg.match(/^[a-zA-Z]:/))) {
                         giftImg = 'http://localhost:3011/local-file?path=' + encodeURIComponent(giftImg);
                     }
-                    bottomContent = `<img src="${giftImg}" class="gift-image">`;
+                    bottomContent = `<img src="${giftImg}" class="gift-image" onerror="this.style.visibility='hidden'">`;
                 } else if (tr.type === 'Likes') {
                     bottomContent = `
                     <div class="like-container">
                         <i class="fa-solid fa-heart like-heart"></i>
-                        <span class="like-count">${tr.amount || 15}</span>
+                        <span class="like-count">${fmtCount(tr.amount || 15)}</span>
                     </div>`;
                 } else if (tr.type === 'AllLikes') {
                     bottomContent = `
                     <div class="like-container">
                         <i class="fa-solid fa-heart like-heart all-likes-heart"></i>
-                        <span class="like-count">${tr.amount || 100}</span>
+                        <span class="like-count">${fmtCount(tr.amount || 100)}</span>
                     </div>`;
                 } else if (tr.type === 'Compartir') {
                     bottomContent = `<div class="icon-container"><i class="fa-solid fa-share widget-icon"></i></div>`;
@@ -325,7 +333,8 @@
                     if (!ipcRenderer && (imgSrc.startsWith('file:') || imgSrc.match(/^[a-zA-Z]:/))) {
                         imgSrc = 'http://localhost:3011/local-file?path=' + encodeURIComponent(imgSrc);
                     }
-                    actionContent = `<img src="${imgSrc}" class="action-image">`;
+                    // Si la imagen no carga, volver al icono por defecto en vez del icono de imagen rota
+                    actionContent = `<img src="${imgSrc}" class="action-image" onerror="this.outerHTML='<i class=&quot;fa-solid fa-terminal action-placeholder&quot;></i>'">`;
                 }
 
                 return `

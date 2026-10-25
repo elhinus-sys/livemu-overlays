@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Gift Goal Overlay</title>
+    <title>Meta de Regalos</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -15,6 +15,12 @@
         .gift-icon { color: #ffd700; font-size: 3.5rem; filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.6)); animation: float 2s ease-in-out infinite; }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
         .goal-text { font-family: 'Consolas', monospace; position: absolute; right: 20px; font-size: 1.2rem; }
+        /* Etiqueta | % | números en 3 columnas: con textos largos o cifras grandes no se encima nada */
+        .content { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); column-gap: 12px; box-sizing: border-box; }
+        #label-inside { position: static !important; grid-column: 1; justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #percentage { grid-column: 2; white-space: nowrap; }
+        .goal-text { position: static; grid-column: 3; justify-self: end; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+        #label-above { overflow-wrap: anywhere; }
     </style>
     <script src="./token-bridge.js"></script>
 </head>
@@ -60,12 +66,15 @@
         let showIcon = true;
 
         function updateUI() {
-            let percent = (currentCoins / targetCoins) * 100;
+            const realPercent = (currentCoins / targetCoins) * 100;
+            let percent = realPercent;
             if (percent > 100) percent = 100;
+            const fmt = (n) => Number(n || 0).toLocaleString('es-MX');
             
             document.getElementById('bar').style.width = percent + '%';
-            document.getElementById('text').innerText = `${currentCoins} / ${targetCoins}`;
-            document.getElementById('percentage').innerText = Math.floor(percent) + '%';
+            document.getElementById('text').innerText = `${fmt(currentCoins)} / ${fmt(targetCoins)}`;
+            // La barra se queda llena, pero el texto muestra el % real si se supera la meta (ej. 123%)
+            document.getElementById('percentage').innerText = Math.floor(realPercent || 0) + '%';
             
             const aboveEl = document.getElementById('label-above');
             const insideEl = document.getElementById('label-inside');

@@ -78,8 +78,8 @@
         /* ESTILOS DEL NOMBRE */
         .username-wrapper {
             color: #ffcc00; /* Color amarillo */
-            display: inline-block;
-            white-space: nowrap;
+            display: block; /* Nombre en su propia línea; la acción va debajo */
+            max-width: 100%;
         }
 
         /* Clase para cada letra */
@@ -111,6 +111,10 @@
             font-family: 'Segoe UI', sans-serif;
             z-index: 10;
             display: none;
+            padding: 0 4%;
+            box-sizing: border-box;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
         }
 
         /* Área para arrastrar la ventana si se abre en modo ventana */
@@ -168,6 +172,9 @@
         const imgEl = document.getElementById('img-element');
         const vidEl = document.getElementById('video-element');
         const textEl = document.getElementById('user-text');
+        // Imagen rota: ocultarla en vez de mostrar el icono roto del navegador
+        imgEl.addEventListener('error', () => { imgEl.style.visibility = 'hidden'; });
+        imgEl.addEventListener('load', () => { imgEl.style.visibility = ''; });
         let timeout = null;
 
         // Detectar modo edición por URL

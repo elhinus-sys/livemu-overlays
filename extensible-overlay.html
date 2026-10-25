@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extensible Timer Overlay</title>
+    <title>Temporizador Extensible</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -233,6 +233,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            min-width: 0; /* permite recortar títulos largos */
         }
 
         .hourglass-icon {
@@ -261,6 +262,11 @@
             background: linear-gradient(90deg, #ffffff, var(--primary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            /* Títulos largos: una línea con "…" en vez de crecer hacia abajo */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
         }
 
         .status-badge {
@@ -276,6 +282,8 @@
             background: rgba(255, 255, 255, 0.08);
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: #aaa;
+            flex-shrink: 0;
+            white-space: nowrap;
         }
 
         .status-dot {
@@ -321,10 +329,11 @@
         }
 
         /* --- DISPLAY DE TIEMPO --- */
+        /* Rejilla 1fr|reloj|ms|badge|1fr: el reloj queda centrado aunque el badge "+Xs" ocupe sitio a la derecha */
         .time-display-container {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr auto auto 1fr; /* si falta sitio, la columna izq. cede primero */
             align-items: baseline;
-            justify-content: center;
             font-family: var(--timer-font, 'Orbitron'), monospace;
             font-weight: 900;
             line-height: 1;
@@ -333,6 +342,7 @@
         }
 
         .time-digits {
+            grid-column: 2;
             font-size: 3.4rem;
             color: #ffffff;
             letter-spacing: 2px;
@@ -340,6 +350,7 @@
         }
 
         .time-ms {
+            grid-column: 3;
             font-size: 1.6rem;
             color: var(--primary);
             opacity: 0.9;
@@ -390,6 +401,12 @@
             z-index: 100;
         }
 
+        .added-time-pill span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+
         .added-time-pill.show {
             opacity: 1;
             transform: translateY(0) scale(1);
@@ -435,6 +452,8 @@
             transition: none;
         }
         .time-delta-badge {
+            grid-column: 4;
+            justify-self: start;
             align-self: center;
             margin-left: 10px;
             padding: 3px 8px;
@@ -513,6 +532,7 @@
             text-transform: uppercase;
             letter-spacing: 2px;
             margin-top: 5px;
+            text-align: center; /* endText largo: las 2 líneas centradas */
             display: none;
             animation: shake 0.5s ease-in-out infinite alternate;
         }

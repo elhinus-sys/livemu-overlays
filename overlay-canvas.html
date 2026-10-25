@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Lienzo de Overlays (Scene Editor)</title>
+    <title>Lienzo de Overlays</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
@@ -67,8 +67,11 @@
         /* Controles (Borrar) de cada widget */
         .widget-controls {
             position: absolute;
-            top: -45px;
-            right: 0;
+            /* Dentro de la caja: con top:-45px quedaba fuera de pantalla (sin poder borrar) si el widget estaba arriba del todo */
+            top: 6px;
+            right: 6px;
+            z-index: 30;
+            max-width: calc(100% - 12px);
             background: #222;
             padding: 5px;
             border-radius: 6px;
@@ -254,7 +257,7 @@
                 controls.className = 'widget-controls';
                 // Etiqueta con textContent y botón con addEventListener (sin interpolar datos en HTML)
                 const label = document.createElement('span');
-                label.style.cssText = 'color:#aaa; font-size:14px; font-weight:bold; max-width:150px; overflow:hidden; white-space:nowrap; padding: 0 5px;';
+                label.style.cssText = 'color:#aaa; font-size:14px; font-weight:bold; max-width:150px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding: 0 5px;';
                 label.textContent = String(w.url || '').split('/').pop();
                 const removeBtn = document.createElement('button');
                 removeBtn.className = 'danger';

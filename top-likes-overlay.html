@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Top Likers Rankings</title>
+    <title>Top Likes</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -75,9 +75,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: rgba(255, 255, 255, 0.6);
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.85);
+            background: rgba(0, 0, 0, 0.45); /* antes casi transparente: los puestos 4-5 no se veían sobre fondos claros */
+            border: 2px solid rgba(255, 255, 255, 0.25);
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             flex-shrink: 0;
             text-shadow: 0 2px 4px rgba(0,0,0,0.5);
@@ -127,7 +127,7 @@
         }
 
         .likes-count {
-            text-shadow: 0 0 10px var(--primary-glow);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 10px var(--primary-glow);
         }
 
         .gap-alert {
@@ -135,7 +135,7 @@
             color: #ff4d4d;
             font-weight: 800;
             margin-top: 2px;
-            text-shadow: 0 0 5px rgba(255, 77, 77, 0.5);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 5px rgba(255, 77, 77, 0.5);
             animation: pulseAlert 1s infinite;
             display: none; /* Oculto por defecto */
         }

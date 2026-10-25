@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>ChatIS Style Widget - Brillo Restaurado</title>
+    <title>Chat</title>
     <!-- [FIX] Usar CDN para permitir carga híbrida (desde archivo/web) independiente de la App -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -95,6 +95,9 @@
             margin-right: 3px; 
         }
 
+        /* Sin insignias: no dejar un hueco antes del nombre */
+        .badges:empty { display: none; }
+
         .badge {
             width: 16px; 
             height: 16px; 
@@ -138,7 +141,7 @@
         .emote {
             max-width: calc(var(--emote-size) * 4); 
             height: var(--emote-size); 
-            margin-right: -3px; 
+            margin-right: 1px; /* -3px se comía el espacio tras el emote */
             vertical-align: middle; 
             display: inline-block;
             margin-top: -4px;

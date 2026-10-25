@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tiempo en Directo Overlay</title>
+    <title>Tiempo en Directo</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,7 +16,7 @@
           color       Color principal, ej. color=ff0050 o color=%23ff0050
           size        Escala (ej. 1.5) o tamaño de los dígitos en px (ej. 72)
           hideOffline 1 = ocultar el widget cuando no estás en directo
-          offlineText Texto cuando no estás en directo (por defecto "OFFLINE")
+          offlineText Texto cuando no estás en directo (por defecto "SIN DIRECTO")
           showSeconds 0 = mostrar solo HH:MM (por defecto 1)
     -->
     <style>
@@ -162,7 +162,7 @@
 <body data-theme="neon">
 
     <div class="uptime-card offline" id="uptime-card">
-        <span class="live-badge"><span class="live-dot"></span><span id="uptime-label">OFFLINE</span></span>
+        <span class="live-badge"><span class="live-dot"></span><span id="uptime-label">SIN DIRECTO</span></span>
         <span class="time-digits" id="uptime-digits">00:00:00</span>
     </div>
 
@@ -171,7 +171,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const paramTheme = (urlParams.get('theme') || 'neon').toLowerCase();
         const paramLabel = urlParams.get('label') || 'EN DIRECTO';
-        const paramOfflineText = urlParams.get('offlineText') || 'OFFLINE';
+        const paramOfflineText = urlParams.get('offlineText') || 'SIN DIRECTO';
         const paramColor = urlParams.get('color');
         const paramSize = parseFloat(urlParams.get('size'));
         const hideOffline = urlParams.get('hideOffline') === '1' || urlParams.get('hideOffline') === 'true';
@@ -232,8 +232,24 @@
                 labelEl.innerText = state === 'offline' ? paramOfflineText : paramLabel;
                 cardEl.classList.toggle('hidden', hideOffline && state === 'offline');
             }
-            if (state !== 'offline') digitsEl.innerText = formatElapsed(getElapsedMs());
+            if (state !== 'offline') {
+                const txt = formatElapsed(getElapsedMs());
+                if (txt.length !== digitsEl.innerText.length) { digitsEl.innerText = txt; fitCard(); }
+                else digitsEl.innerText = txt;
+            }
+            if (state !== lastFitState) { lastFitState = state; fitCard(); }
         }
+
+        // Si la fuente de OBS es más estrecha que la tarjeta, reducirla para que no se corte por los lados
+        let lastFitState = '';
+        function fitCard() {
+            cardEl.style.zoom = '';
+            const avail = window.innerWidth - 16;
+            const w = cardEl.offsetWidth;
+            if (avail > 0 && w > avail) cardEl.style.zoom = String(avail / w);
+        }
+        window.addEventListener('resize', fitCard);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitCard);
 
         function handleUptimeUpdate(u) {
             if (!u || typeof u !== 'object') return;
