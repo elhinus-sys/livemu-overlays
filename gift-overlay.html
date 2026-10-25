@@ -217,6 +217,8 @@
 
         // Loop de actualización pasiva de respaldo
         setInterval(() => {
+            // Con el socket conectado los datos llegan por 'data'/'update-gifts': no hacer polling a /data
+            if (!ipcRenderer && socket && socket.connected) return;
             loadData();
         }, 5000);
 

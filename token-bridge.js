@@ -124,6 +124,10 @@
                 if (eventListeners.has(event)) return;
                 eventListeners.set(event, new Set());
 
+                // 'connect'/'disconnect' ya se despachan manualmente (dispatchEvent) desde los
+                // handlers de conexión; no enlazarlos a los sockets para no ejecutarlos dos veces.
+                if (event === 'connect' || event === 'disconnect') return;
+
                 // Escuchar en el socket local
                 localSocket.on(event, (...args) => {
                     const listeners = eventListeners.get(event);

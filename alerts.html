@@ -397,8 +397,10 @@
                 // AQUÍ ESTÁ EL TRUCO DE LA OLA:
                 // Usamos el 'index' (i) para calcular el retraso.
                 // Cada letra espera 0.1s más que la anterior para empezar a moverse.
-                const safeUsername = escapeHtml(data.username);
-                const wrappedLetters = safeUsername.split('').map((char, i) => {
+                // Partir por caracteres reales (Array.from respeta emojis/pares sustitutos)
+                // y escapar cada uno después, para no romper entidades como &amp; en letras sueltas.
+                const rawUsername = String(data.username);
+                const wrappedLetters = Array.from(rawUsername).map(ch => escapeHtml(ch)).map((char, i) => {
                     const content = char === ' ' ? '&nbsp;' : char;
                     // Agregamos style="animation-delay: ..." dinámicamente
                     return `<span class="wave-char" style="animation-delay: ${i * 0.1}s">${content}</span>`;

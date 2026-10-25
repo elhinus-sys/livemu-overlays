@@ -142,7 +142,7 @@
             if (!allLayouts['16/9']) allLayouts['16/9'] = [];
             if (!allLayouts['9/16']) allLayouts['9/16'] = [];
             
-            applyCurrentRatio();
+            applyCurrentRatio(true); // Layout recargado: re-render completo
         }
 
         // [FIX DEFINITIVO] Escuchar la resolución correcta enviada por el proceso principal.
@@ -150,22 +150,65 @@
         if (ipcRenderer) {
             ipcRenderer.on('set-initial-ratio', (event, ratio) => {
                 console.log('Received initial ratio:', ratio);
-                currentRatio = ratio;
-                applyCurrentRatio(true); // Forzar aplicación con el ratio correcto
+                applyCurrentRatio(ratio); // Forzar aplicación con el ratio correcto
             });
         }
 
-        function applyCurrentRatio() {
-            currentRatio = window.innerHeight > window.innerWidth ? '9/16' : '16/9';
+        // Ratio con el que se generaron los iframes actuales (null = nada renderizado aún)
+        let lastRenderedRatio = null;
+
+        // forceRatio: '16/9' | '9/16' para usar ese ratio, true para forzar re-render, vacío para detectar
+        function applyCurrentRatio(forceRatio) {
+            const detected = window.innerHeight > window.innerWidth ? '9/16' : '16/9';
+            const newRatio = (forceRatio === '16/9' || forceRatio === '9/16') ? forceRatio : detected;
+            const force = forceRatio === true || typeof forceRatio === 'string';
+
+            if (!force && newRatio === lastRenderedRatio) {
+                // Mismo ratio: solo recolocar los widgets existentes sin recargar iframes
+                widgets.forEach(w => clampWidget(w));
+                repositionWidgets();
+                return;
+            }
+
+            currentRatio = newRatio;
             widgets = allLayouts[currentRatio] || [];
-            
+
             // Si cambiamos el tamaño de la ventana, forzar a que no se salgan
             widgets.forEach(w => clampWidget(w));
-            
+
             renderWidgets();
+            lastRenderedRatio = currentRatio;
         }
-        
-        window.addEventListener('resize', applyCurrentRatio);
+
+        // Actualiza posición/tamaño de los widgets ya montados (sin tocar los iframes)
+        function repositionWidgets() {
+            widgets.forEach(w => {
+                const el = document.getElementById('widget-box-' + w.id);
+                if (!el) return;
+                el.style.left = w.x + 'px';
+                el.style.top = w.y + 'px';
+                el.style.width = (w.w * (w.scale || 1)) + 'px';
+                el.style.height = (w.h * (w.scale || 1)) + 'px';
+                const scaler = document.getElementById('widget-scaler-' + w.id);
+                if (scaler) {
+                    scaler.style.width = w.w + 'px';
+                    scaler.style.height = w.h + 'px';
+                    scaler.style.transform = `scale(${w.scale || 1})`;
+                }
+            });
+        }
+
+        // Debounce del resize (150ms) para no recargar iframes en cada píxel
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => applyCurrentRatio(), 150);
+        });
+
+        // Solo se aceptan URLs absolutas http(s) para los widgets
+        function isSafeWidgetUrl(url) {
+            return typeof url === 'string' && /^https?:\/\//i.test(url);
+        }
 
         function broadcastUpdate(fullRender = false) {
             if (isEditMode && ipcRenderer) {
@@ -203,14 +246,24 @@
 
                 const iframe = document.createElement('iframe');
                 iframe.className = 'widget-iframe';
-                iframe.src = w.url;
+                if (isSafeWidgetUrl(w.url)) iframe.src = w.url;
                 iframe.setAttribute('allowTransparency', 'true');
                 scaler.appendChild(iframe);
 
                 const controls = document.createElement('div');
                 controls.className = 'widget-controls';
-                controls.innerHTML = `<span style="color:#aaa; font-size:14px; font-weight:bold; max-width:150px; overflow:hidden; white-space:nowrap; padding: 0 5px;">${w.url.split('/').pop()}</span>
-                                      <button class="danger" style="padding: 8px 12px; font-size:16px; cursor:pointer; background:#dc3545; color:white; border:none; border-radius:4px;" onclick="removeWidget('${w.id}')"><i class="fa-solid fa-trash"></i></button>`;
+                // Etiqueta con textContent y botón con addEventListener (sin interpolar datos en HTML)
+                const label = document.createElement('span');
+                label.style.cssText = 'color:#aaa; font-size:14px; font-weight:bold; max-width:150px; overflow:hidden; white-space:nowrap; padding: 0 5px;';
+                label.textContent = String(w.url || '').split('/').pop();
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'danger';
+                removeBtn.style.cssText = 'padding: 8px 12px; font-size:16px; cursor:pointer; background:#dc3545; color:white; border:none; border-radius:4px;';
+                removeBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                const widgetId = w.id;
+                removeBtn.addEventListener('click', () => removeWidget(widgetId));
+                controls.appendChild(label);
+                controls.appendChild(removeBtn);
 
                 container.appendChild(scaler);
                 container.appendChild(controls);
@@ -259,23 +312,36 @@
             }
         }
 
+        // Estado del arrastre activo (un único par de listeners globales para todos los widgets)
+        let activeDrag = null;
+
         function makeDraggable(el, wObj) {
-            let isDragging = false, isResizing = false, currentHandle = null, start = {};
             el.addEventListener('mousedown', e => {
                 if(e.target.closest('.widget-controls')) return;
-                
+
                 // Seleccionar widget
                 document.querySelectorAll('.widget-container').forEach(c => c.classList.remove('selected'));
                 el.classList.add('selected');
                 selectedWidgetId = wObj.id;
                 window.focus(); // Asegurar foco para capturar el teclado
 
-                e.target.classList.contains('resize-handle') ? (isResizing = true, currentHandle = e.target.dataset.handle) : (isDragging = true);
+                const isResizing = e.target.classList.contains('resize-handle');
                 if (wObj.scale === undefined) wObj.scale = 1;
-                start = { x: wObj.x, y: wObj.y, w: wObj.w, h: wObj.h, scale: wObj.scale, mx: e.clientX, my: e.clientY };
+                activeDrag = {
+                    el, wObj,
+                    isDragging: !isResizing,
+                    isResizing,
+                    currentHandle: isResizing ? e.target.dataset.handle : null,
+                    start: { x: wObj.x, y: wObj.y, w: wObj.w, h: wObj.h, scale: wObj.scale, mx: e.clientX, my: e.clientY }
+                };
                 el.style.zIndex = 1000; e.preventDefault();
             });
-            window.addEventListener('mousemove', e => {
+        }
+
+        // Listeners globales registrados una sola vez (antes se añadían por widget en cada render)
+        window.addEventListener('mousemove', e => {
+                if (!activeDrag) return;
+                const { el, wObj, isDragging, isResizing, currentHandle, start } = activeDrag;
                 if (!isDragging && !isResizing) return;
                 const zoom = 1; // La escala es manejada por el navegador nativamente ahora
                 const dx = (e.clientX - start.mx) / zoom;
@@ -344,14 +410,14 @@
                     el.style.top = wObj.y + 'px';
                 }
                 if (isDragging || isResizing) broadcastUpdate(false);
-            });
-            window.addEventListener('mouseup', () => { 
-                if (isDragging || isResizing) {
-                    isDragging = false; isResizing = false; el.style.zIndex = ''; 
-                    saveLayout();
-                }
-            });
-        }
+        });
+        window.addEventListener('mouseup', () => {
+            if (activeDrag) {
+                activeDrag.el.style.zIndex = '';
+                activeDrag = null;
+                saveLayout();
+            }
+        });
 
         // Eliminar con la tecla Supr o Backspace
         document.addEventListener('keydown', (e) => {
@@ -405,8 +471,12 @@
 
         // --- ESCUCHAR COMANDOS DESDE EL PANEL PRINCIPAL ---
         window.addEventListener('message', (event) => {
+            // Solo aceptar comandos del panel que nos contiene (o de nuestro mismo origen)
+            const trusted = (window.parent !== window && event.source === window.parent) || event.origin === window.location.origin;
+            if (!trusted) return;
             if (event.data) {
                 if (event.data.command === 'addWidget') {
+                    if (!isSafeWidgetUrl(event.data.url)) { console.warn('[Canvas] URL de widget rechazada'); return; }
                     const logicalW = window.innerWidth;
                     const logicalH = window.innerHeight;
                     

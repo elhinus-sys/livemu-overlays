@@ -465,6 +465,12 @@
                 .replace(/'/g, '&#039;');
         }
 
+        // Solo aceptamos URLs http(s) para GIFs (evita javascript:/data: e inyección en el atributo src)
+        function safeGifUrl(url) {
+            if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return null;
+            return escapeHtml(url);
+        }
+
         function addMessage(platform, user, message, badges = [], color = '#ffffff', twitchEmotes = null, gifUrl = null, gifs = [], isHtml = false, headerHtml = null) {
             if (isUserBlocked(user)) return;
             const msgDiv = document.createElement('div');
@@ -499,8 +505,9 @@
                 if (gifs && gifs.length > 0) {
                     const sortedGifs = [...gifs].sort((a, b) => (b.start || 0) - (a.start || 0));
                     for (const gif of sortedGifs) {
-                        if (gif.url) {
-                            const img = `<img class="gif chat-gif" src="${gif.url}" data-id="${gif.id || ''}" loading="lazy" />`;
+                        const gifSrc = safeGifUrl(gif.url);
+                        if (gifSrc) {
+                            const img = `<img class="gif chat-gif" src="${gifSrc}" data-id="${escapeHtml(gif.id || '')}" loading="lazy" />`;
                             if (processedMessage.match(/\[(.*?) GIF by (.*?)\]/i)) {
                                 processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/i, img);
                                 isGifOnly = true;
@@ -514,8 +521,8 @@
                             }
                         }
                     }
-                } else if (gifUrl) {
-                    const img = `<img class="gif chat-gif" src="${gifUrl}" loading="lazy" />`;
+                } else if (safeGifUrl(gifUrl)) {
+                    const img = `<img class="gif chat-gif" src="${safeGifUrl(gifUrl)}" loading="lazy" />`;
                     if (processedMessage.match(/\[(.*?) GIF by (.*?)\]/i)) {
                         processedMessage = processedMessage.replace(/\[(.*?) GIF by (.*?)\]/gi, img);
                         isGifOnly = true;

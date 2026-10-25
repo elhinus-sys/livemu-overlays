@@ -113,6 +113,19 @@
 
         // Recargar el widget instantáneamente cuando el usuario presione "Guardar" en la app
         socket.on('reload_overlays', () => { location.reload(); });
+
+        // Metas actualizadas desde la app (payload = widgetData.goals): re-render sin recargar
+        socket.on('goals_updated', (goals) => {
+            if (goals && goals.likes) {
+                targetLikes = goals.likes.target || 1000;
+                labelText = goals.likes.label !== undefined ? goals.likes.label : "Meta de Likes";
+                position = goals.likes.position || "inside";
+                showIcon = goals.likes.showIcon !== false;
+                updateUI();
+            } else {
+                location.reload();
+            }
+        });
     </script>
 </body>
 </html>

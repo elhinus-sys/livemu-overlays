@@ -351,7 +351,7 @@
         </div>
     </div>
     <div id="chat-container">
-        <div style="text-align: center; color: #888; margin-top: auto; margin-bottom: auto;">Esperando mensajes...</div>
+        <div id="chat-placeholder" style="text-align: center; color: #888; margin-top: auto; margin-bottom: auto;">Esperando mensajes...</div>
     </div>
     <button id="btn-scroll-bottom" onclick="scrollToBottom(true)"
         style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; background: #9146FF; color: white; border: none; border-radius: 20px; padding: 7px 16px; font-weight: bold; font-size: 0.85rem; box-shadow: 0 4px 14px rgba(0,0,0,0.6); cursor: pointer; align-items: center; gap: 6px; transition: opacity 0.2s ease;">
@@ -681,9 +681,12 @@
                 }
             });
             socket.on('like_event', (data) => {
+                // Los like_event por usuario (con uid) son para el ranking; el contador usa solo el resumen
+                if (!data || data.uid) return;
                 const total = parseInt(data.totalLikeCount || data.total_like_count || data.totalLikes || data.total || 0, 10);
-                if (total > currentLocalLikes) {
-                    currentLocalLikes = total;
+                if (total > 0) {
+                    // Con total absoluto nunca sumamos el delta (evita contar doble)
+                    currentLocalLikes = Math.max(currentLocalLikes, total);
                 } else if (data.likeCount) {
                     currentLocalLikes += parseInt(data.likeCount, 10);
                 }
@@ -820,7 +823,9 @@
 
                 updateConnStatus(true, 'Activo');
 
-                if (chatContainer.innerHTML.includes('Esperando mensajes...')) chatContainer.innerHTML = '';
+                // Quitar el placeholder por id (evita serializar todo el chat con innerHTML en cada mensaje)
+                const chatPlaceholder = document.getElementById('chat-placeholder');
+                if (chatPlaceholder) chatPlaceholder.remove();
 
                 const entry = document.createElement('div');
                 entry.className = 'chat-line';
@@ -1374,8 +1379,11 @@
                 } else if (payload.type === 'like') {
                     const d = payload.data || {};
                     const total = parseInt(d.totalLikeCount || d.total_like_count || d.totalLikes || d.total || 0, 10);
-                    if (total > currentLocalLikes) {
-                        currentLocalLikes = total;
+                    if (total > 0) {
+                        // Con total absoluto nunca sumamos el delta (evita contar doble)
+                        currentLocalLikes = Math.max(currentLocalLikes, total);
+                    } else if (d.uid) {
+                        // Evento por usuario sin total: no afecta al contador global
                     } else if (d.likeCount) {
                         currentLocalLikes += parseInt(d.likeCount, 10);
                     }

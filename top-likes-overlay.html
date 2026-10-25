@@ -331,10 +331,13 @@
         function updateList() {
             // [OPTIMIZACIÓN CPU] Procesar todos los likes pendientes de una vez
             pendingLikes.forEach(data => {
-                const uid = data.userId || data.uniqueId || (data.user && data.user.userId) || (data.user && data.user.id) || (data.user && data.user.uniqueId) || (data.sender && data.sender.userId) || 'unknown';
+                // Misma clave que main.js usa en widgetData.topLikers / sync_likers (uid)
+                const uid = data.uid || data.uniqueId || data.userId || (data.user && data.user.uniqueId) || (data.user && data.user.userId) || (data.user && data.user.id) || (data.sender && data.sender.userId) || null;
+                // Eventos sin usuario (p.ej. el resumen de likes) no cuentan para el ranking
+                if (!uid) return;
                 const nickname = data.nickname || data.uniqueId || (data.user && data.user.nickname) || (data.sender && data.sender.nickname) || 'Viewer';
                 let realAvatarUrl = null; const extractUrl = (obj) => { if (!obj) return null; if (obj.url && Array.isArray(obj.url) && obj.url.length > 0) return obj.url[0]; if (typeof obj === 'string') return obj; return null; };
-                if (data.user && data.user.profilePicture) realAvatarUrl = extractUrl(data.user.profilePicture); if (!realAvatarUrl && data.profilePictureUrl) realAvatarUrl = data.profilePictureUrl; if (!realAvatarUrl && data.sender && data.sender.avatar) realAvatarUrl = data.sender.avatar;
+                if (data.avatar) realAvatarUrl = extractUrl(data.avatar); if (!realAvatarUrl && data.profilePictureUrl) realAvatarUrl = data.profilePictureUrl; if (!realAvatarUrl && data.user && data.user.profilePicture) realAvatarUrl = extractUrl(data.user.profilePicture); if (!realAvatarUrl && data.sender && data.sender.avatar) realAvatarUrl = data.sender.avatar;
                 const avatar = realAvatarUrl || getFallbackAvatar(nickname);
                 if (!likersMap.has(uid)) { likersMap.set(uid, { uid: uid, nickname: nickname, avatar: avatar, count: 0 }); } else if (realAvatarUrl) { likersMap.get(uid).avatar = realAvatarUrl; }
                 const user = likersMap.get(uid);

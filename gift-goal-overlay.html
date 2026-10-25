@@ -114,6 +114,19 @@
 
         // Recargar el widget instantáneamente cuando el usuario presione "Guardar" en la app
         socket.on('reload_overlays', () => { location.reload(); });
+
+        // Metas actualizadas desde la app (payload = widgetData.goals): re-render sin recargar
+        socket.on('goals_updated', (goals) => {
+            if (goals && goals.coins) {
+                targetCoins = goals.coins.target || 1000;
+                labelText = goals.coins.label !== undefined ? goals.coins.label : "Meta de Regalos";
+                position = goals.coins.position || "inside";
+                showIcon = goals.coins.showIcon !== false;
+                updateUI();
+            } else {
+                location.reload();
+            }
+        });
     </script>
 </body>
 </html>

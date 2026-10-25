@@ -416,7 +416,8 @@
 
         socket.on('gift_event', (data) => {
             if (mode === 'app' || typeof io === 'undefined') {
-                const uid = data.userId || data.uniqueId || (data.user && data.user.userId) || (data.user && data.user.id) || (data.user && data.user.uniqueId) || (data.sender && data.sender.userId) || 'unknown';
+                // Mismo orden que main.js (uniqueId || userId) para fusionar con las filas de sync_gifters
+                const uid = data.uid || data.uniqueId || data.userId || (data.user && data.user.userId) || (data.user && data.user.id) || (data.user && data.user.uniqueId) || (data.sender && data.sender.userId) || 'unknown';
                 const nickname = data.nickname || data.uniqueId || (data.user && data.user.nickname) || (data.sender && data.sender.nickname) || 'Viewer';
                 
                 let realAvatarUrl = null;
